@@ -29922,360 +29922,514 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
-/***/ 9863:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ 9407:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
-const fs = __nccwpck_require__(9896);
-const path = __nccwpck_require__(6928);
+"use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const core = __importStar(__nccwpck_require__(7484));
+const github = __importStar(__nccwpck_require__(3228));
+const path = __importStar(__nccwpck_require__(6928));
+const scanner_1 = __nccwpck_require__(4105);
+async function run() {
+    try {
+        // Read inputs
+        const token = core.getInput('github-token', { required: true });
+        const scanPath = core.getInput('scan-path') || '.';
+        const failOnGaps = core.getInput('fail-on-gaps') === 'true';
+        // Resolve the scan path relative to the workspace
+        const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+        const fullScanPath = path.resolve(workspace, scanPath);
+        core.info(`Scanning for AI agent governance gaps in: ${fullScanPath}`);
+        // Anonymous usage ping (no PII, no code, just counts)
+        try {
+            const https = __nccwpck_require__(5692);
+            const pingData = JSON.stringify({
+                event: 'action_run',
+                agent_files: 0, // updated after scan
+                version: '1.0.0',
+            });
+            const req = https.request({
+                hostname: 'api.asqav.com',
+                path: '/api/v1/health/',
+                method: 'GET',
+                timeout: 3000,
+                headers: { 'X-Asqav-Source': 'github-action' },
+            });
+            req.on('error', () => { }); // silent fail
+            req.end();
+        }
+        catch (e) { /* never block the action */ }
+        // Step 1: Find all Python files with agent framework imports
+        const agentFiles = (0, scanner_1.scanDirectory)(fullScanPath);
+        core.info(`Found ${agentFiles.length} Python file(s) using AI agent frameworks`);
+        // Step 2: Analyse each file for governance patterns
+        const results = agentFiles.map(({ filePath, content }) => {
+            // Make the path relative to the workspace for cleaner reporting
+            const relativePath = path.relative(workspace, filePath);
+            const analysis = (0, scanner_1.analyzeFile)(relativePath, content);
+            return analysis;
+        });
+        // Step 3: Generate the compliance report
+        const report = (0, scanner_1.generateReport)(results);
+        core.info('Compliance report generated');
+        // Step 4: Post as a PR comment (if running in a PR context)
+        const context = github.context;
+        if (context.payload.pull_request) {
+            const octokit = github.getOctokit(token);
+            const prNumber = context.payload.pull_request.number;
+            // Check for an existing comment from this action to update instead of creating a new one
+            const { data: comments } = await octokit.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+            });
+            const botComment = comments.find((comment) => comment.user?.type === 'Bot' &&
+                comment.body?.includes('AI Agent Governance Report'));
+            if (botComment) {
+                await octokit.rest.issues.updateComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    comment_id: botComment.id,
+                    body: report,
+                });
+                core.info(`Updated existing PR comment #${botComment.id}`);
+            }
+            else {
+                await octokit.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: prNumber,
+                    body: report,
+                });
+                core.info(`Posted compliance report as comment on PR #${prNumber}`);
+            }
+        }
+        else {
+            core.info('Not running in a PR context - printing report to output');
+            core.info(report);
+        }
+        // Step 5: Set outputs
+        const totalFiles = results.length;
+        const gapCount = results.reduce((sum, r) => {
+            let gaps = 0;
+            if (!r.auditTrail.pass)
+                gaps++;
+            if (!r.policyEnforcement.pass)
+                gaps++;
+            if (!r.revocation.pass)
+                gaps++;
+            if (!r.humanOversight.pass)
+                gaps++;
+            if (!r.errorHandling.pass)
+                gaps++;
+            return sum + gaps;
+        }, 0);
+        // Recalculate score for output
+        let score = 0;
+        const categories = ['auditTrail', 'policyEnforcement', 'revocation', 'humanOversight', 'errorHandling'];
+        for (const key of categories) {
+            const passCount = results.filter((r) => r[key].pass).length;
+            const total = results.length;
+            if (total > 0) {
+                score += (passCount / total) * 20;
+            }
+            else {
+                score += 20;
+            }
+        }
+        score = Math.round(score);
+        core.setOutput('score', score.toString());
+        core.setOutput('agent-files', totalFiles.toString());
+        core.setOutput('gaps', gapCount.toString());
+        core.setOutput('report', report);
+        // Step 6: Optionally fail the check
+        if (failOnGaps && gapCount > 0) {
+            core.setFailed(`AI agent governance scan found ${gapCount} gap(s) across ${totalFiles} file(s). Score: ${score}/100`);
+        }
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        core.setFailed(`Action failed: ${message}`);
+    }
+}
+run();
+
+
+/***/ }),
+
+/***/ 4105:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.scanDirectory = scanDirectory;
+exports.analyzeFile = analyzeFile;
+exports.generateReport = generateReport;
+const fs = __importStar(__nccwpck_require__(9896));
+const path = __importStar(__nccwpck_require__(6928));
 // --- Pattern Definitions ---
-
 const AGENT_FRAMEWORK_PATTERNS = [
-  /^\s*(?:import\s+(?:langchain|crewai|openai|anthropic|autogen|google\.generativeai|smolagents|llama_index|haystack|semantic_kernel))/m,
-  /^\s*(?:from\s+(?:langchain|crewai|openai|anthropic|autogen|google\.generativeai|smolagents|llama_index|haystack|semantic_kernel)\s+import)/m,
+    /^\s*(?:import\s+(?:langchain|crewai|openai|anthropic|autogen|google\.generativeai|smolagents|llama_index|haystack|semantic_kernel))/m,
+    /^\s*(?:from\s+(?:langchain|crewai|openai|anthropic|autogen|google\.generativeai|smolagents|llama_index|haystack|semantic_kernel)[\s.])/m,
 ];
-
 const AUDIT_TRAIL_PATTERNS = [
-  /import\s+asqav/,
-  /from\s+asqav\s+import/,
-  /asqav\./,
-  /\.sign\s*\(/,
-  /audit_trail/i,
-  /log_action/i,
-  /action_log/i,
-  /audit_log/i,
-  /logging\.getLogger/,
-  /logger\.\w+\(/,
+    /import\s+asqav/,
+    /from\s+asqav\s+import/,
+    /asqav\./,
+    /\.sign\s*\(/,
+    /audit_trail/i,
+    /log_action/i,
+    /action_log/i,
+    /audit_log/i,
+    /logging\.getLogger/,
+    /logger\.\w+\(/,
 ];
-
 const POLICY_PATTERNS = [
-  /rate_limit/i,
-  /ratelimit/i,
-  /policy/i,
-  /scope/i,
-  /allowed_actions/i,
-  /action_gate/i,
-  /guard/i,
-  /permission/i,
-  /restrict/i,
-  /whitelist/i,
-  /allowlist/i,
-  /max_iterations/i,
-  /max_steps/i,
-  /timeout/i,
+    /rate_limit/i,
+    /ratelimit/i,
+    /policy/i,
+    /\bscope\b/i,
+    /allowed_actions/i,
+    /action_gate/i,
+    /\bguard\b/i,
+    /permission/i,
+    /restrict/i,
+    /whitelist/i,
+    /allowlist/i,
+    /max_iterations/i,
+    /max_steps/i,
+    /\btimeout\b/i,
 ];
-
 const REVOCATION_PATTERNS = [
-  /revoke/i,
-  /disable/i,
-  /kill_switch/i,
-  /killswitch/i,
-  /suspend/i,
-  /shutdown/i,
-  /terminate/i,
-  /emergency_stop/i,
-  /circuit_breaker/i,
+    /revoke/i,
+    /\bdisable[d]?\b/i,
+    /kill_switch/i,
+    /killswitch/i,
+    /suspend/i,
+    /shutdown/i,
+    /terminate/i,
+    /emergency_stop/i,
+    /circuit_breaker/i,
 ];
-
 const HUMAN_OVERSIGHT_PATTERNS = [
-  /human_in_the_loop/i,
-  /human_in_loop/i,
-  /hitl/i,
-  /approval/i,
-  /approve/i,
-  /multi_party/i,
-  /require_approval/i,
-  /manual_review/i,
-  /human_review/i,
-  /confirm_action/i,
-  /await_confirmation/i,
-  /human_oversight/i,
+    /human_in_the_loop/i,
+    /human_in_loop/i,
+    /hitl/i,
+    /\bapproval\b/i,
+    /approve/i,
+    /multi_party/i,
+    /require_approval/i,
+    /manual_review/i,
+    /human_review/i,
+    /confirm_action/i,
+    /await_confirmation/i,
+    /human_oversight/i,
 ];
-
 const ERROR_HANDLING_PATTERN = /try\s*:/;
-
 // We also look for except blocks that follow try blocks to validate real try/except usage
 const EXCEPT_PATTERN = /except\s*(?:\w|[:(])/;
-
 // --- Core Functions ---
-
 /**
  * Recursively scan a directory for Python files that use AI agent frameworks.
- * Returns an array of { filePath, content } objects.
+ * Returns an array of FileResult objects.
  */
 function scanDirectory(dirPath) {
-  const results = [];
-
-  function walk(currentPath) {
-    let entries;
-    try {
-      entries = fs.readdirSync(currentPath, { withFileTypes: true });
-    } catch (err) {
-      // Skip directories we cannot read
-      return;
-    }
-
-    for (const entry of entries) {
-      const fullPath = path.join(currentPath, entry.name);
-
-      // Skip common non-essential directories
-      if (entry.isDirectory()) {
-        const skip = [
-          'node_modules', '.git', '__pycache__', '.venv', 'venv',
-          'env', '.env', '.tox', '.mypy_cache', '.pytest_cache',
-          'dist', 'build', '.eggs',
-        ];
-        if (!skip.includes(entry.name)) {
-          walk(fullPath);
+    const results = [];
+    function walk(currentPath) {
+        let entries;
+        try {
+            entries = fs.readdirSync(currentPath, { withFileTypes: true });
         }
-        continue;
-      }
-
-      // Only process Python files
-      if (!entry.name.endsWith('.py')) continue;
-
-      let content;
-      try {
-        content = fs.readFileSync(fullPath, 'utf-8');
-      } catch (err) {
-        continue;
-      }
-
-      // Check if this file imports any agent framework
-      const usesAgent = AGENT_FRAMEWORK_PATTERNS.some((pat) => pat.test(content));
-      if (usesAgent) {
-        results.push({ filePath: fullPath, content });
-      }
+        catch (err) {
+            // Skip directories we cannot read
+            return;
+        }
+        for (const entry of entries) {
+            if (entry.isSymbolicLink())
+                continue;
+            const fullPath = path.join(currentPath, entry.name);
+            // Skip common non-essential directories
+            if (entry.isDirectory()) {
+                const skip = [
+                    'node_modules', '.git', '__pycache__', '.venv', 'venv',
+                    'env', '.env', '.tox', '.mypy_cache', '.pytest_cache',
+                    'dist', 'build', '.eggs',
+                ];
+                if (!skip.includes(entry.name)) {
+                    walk(fullPath);
+                }
+                continue;
+            }
+            // Only process Python files
+            if (!entry.name.endsWith('.py'))
+                continue;
+            const stat = fs.statSync(fullPath);
+            if (stat.size > 1024 * 1024)
+                continue; // skip files > 1MB
+            let content;
+            try {
+                content = fs.readFileSync(fullPath, 'utf-8');
+            }
+            catch (err) {
+                continue;
+            }
+            // Check if this file imports any agent framework
+            const usesAgent = AGENT_FRAMEWORK_PATTERNS.some((pat) => pat.test(content));
+            if (usesAgent) {
+                results.push({ filePath: fullPath, content });
+            }
+        }
     }
-  }
-
-  walk(dirPath);
-  return results;
+    walk(dirPath);
+    return results;
 }
-
+/**
+ * Helper to check patterns against content and return a GovCheck.
+ */
+function checkPatterns(patterns, content) {
+    return {
+        pass: patterns.some((p) => p.test(content)),
+        matches: patterns
+            .filter((p) => p.test(content))
+            .map((p) => {
+            const m = content.match(p);
+            return m ? m[0].trim() : null;
+        })
+            .filter((v) => v !== null),
+    };
+}
 /**
  * Analyse a single file's content for governance patterns.
- * Returns an object describing which checks pass.
+ * Returns an AnalysisResult describing which checks pass.
  */
 function analyzeFile(filePath, content) {
-  const detectedFrameworks = [];
-  for (const pat of AGENT_FRAMEWORK_PATTERNS) {
-    const match = content.match(pat);
-    if (match) {
-      // Extract the framework name from the import line
-      const line = match[0].trim();
-      const fwMatch = line.match(/(?:import|from)\s+([\w.]+)/);
-      if (fwMatch && !detectedFrameworks.includes(fwMatch[1])) {
-        detectedFrameworks.push(fwMatch[1]);
-      }
+    const detectedFrameworks = [];
+    for (const pat of AGENT_FRAMEWORK_PATTERNS) {
+        const match = content.match(pat);
+        if (match) {
+            // Extract the framework name from the import line
+            const line = match[0].trim();
+            const fwMatch = line.match(/(?:import|from)\s+([\w.]+)/);
+            if (fwMatch && !detectedFrameworks.includes(fwMatch[1].replace(/\.$/, ''))) {
+                detectedFrameworks.push(fwMatch[1].replace(/\.$/, ''));
+            }
+        }
     }
-  }
-
-  const auditTrail = {
-    pass: AUDIT_TRAIL_PATTERNS.some((p) => p.test(content)),
-    matches: AUDIT_TRAIL_PATTERNS
-      .filter((p) => p.test(content))
-      .map((p) => {
-        const m = content.match(p);
-        return m ? m[0].trim() : null;
-      })
-      .filter(Boolean),
-  };
-
-  const policyEnforcement = {
-    pass: POLICY_PATTERNS.some((p) => p.test(content)),
-    matches: POLICY_PATTERNS
-      .filter((p) => p.test(content))
-      .map((p) => {
-        const m = content.match(p);
-        return m ? m[0].trim() : null;
-      })
-      .filter(Boolean),
-  };
-
-  const revocation = {
-    pass: REVOCATION_PATTERNS.some((p) => p.test(content)),
-    matches: REVOCATION_PATTERNS
-      .filter((p) => p.test(content))
-      .map((p) => {
-        const m = content.match(p);
-        return m ? m[0].trim() : null;
-      })
-      .filter(Boolean),
-  };
-
-  const humanOversight = {
-    pass: HUMAN_OVERSIGHT_PATTERNS.some((p) => p.test(content)),
-    matches: HUMAN_OVERSIGHT_PATTERNS
-      .filter((p) => p.test(content))
-      .map((p) => {
-        const m = content.match(p);
-        return m ? m[0].trim() : null;
-      })
-      .filter(Boolean),
-  };
-
-  const hasTry = ERROR_HANDLING_PATTERN.test(content);
-  const hasExcept = EXCEPT_PATTERN.test(content);
-  const errorHandling = {
-    pass: hasTry && hasExcept,
-    matches: hasTry && hasExcept ? ['try/except'] : [],
-  };
-
-  return {
-    filePath,
-    frameworks: detectedFrameworks,
-    auditTrail,
-    policyEnforcement,
-    revocation,
-    humanOversight,
-    errorHandling,
-  };
+    const auditTrail = checkPatterns(AUDIT_TRAIL_PATTERNS, content);
+    const policyEnforcement = checkPatterns(POLICY_PATTERNS, content);
+    const revocation = checkPatterns(REVOCATION_PATTERNS, content);
+    const humanOversight = checkPatterns(HUMAN_OVERSIGHT_PATTERNS, content);
+    const hasTry = ERROR_HANDLING_PATTERN.test(content);
+    const hasExcept = EXCEPT_PATTERN.test(content);
+    const errorHandling = {
+        pass: hasTry && hasExcept,
+        matches: hasTry && hasExcept ? ['try/except'] : [],
+    };
+    return {
+        filePath,
+        frameworks: detectedFrameworks,
+        auditTrail,
+        policyEnforcement,
+        revocation,
+        humanOversight,
+        errorHandling,
+    };
 }
-
 /**
  * Generate a Markdown compliance report from analysis results.
  */
 function generateReport(results) {
-  if (results.length === 0) {
-    return [
-      '## :shield: AI Agent Governance Report',
-      '',
-      '**No AI agent framework usage detected.** No Python files importing known agent frameworks (LangChain, CrewAI, OpenAI, Anthropic, AutoGen, etc.) were found in the scanned path.',
-      '',
-      '---',
-      '*Powered by [asqav](https://asqav.com) — AI agent governance made simple.*',
-    ].join('\n');
-  }
-
-  // Aggregate across all files
-  const totals = {
-    auditTrail: { pass: 0, gap: 0, files: [] },
-    policyEnforcement: { pass: 0, gap: 0, files: [] },
-    revocation: { pass: 0, gap: 0, files: [] },
-    humanOversight: { pass: 0, gap: 0, files: [] },
-    errorHandling: { pass: 0, gap: 0, files: [] },
-  };
-
-  const categories = [
-    { key: 'auditTrail', label: 'Audit Trail' },
-    { key: 'policyEnforcement', label: 'Policy Enforcement' },
-    { key: 'revocation', label: 'Revocation Capability' },
-    { key: 'humanOversight', label: 'Human Oversight' },
-    { key: 'errorHandling', label: 'Error Handling' },
-  ];
-
-  for (const result of results) {
+    if (results.length === 0) {
+        return [
+            '## :shield: AI Agent Governance Report',
+            '',
+            '**No AI agent framework usage detected.** No Python files importing known agent frameworks (LangChain, CrewAI, OpenAI, Anthropic, AutoGen, etc.) were found in the scanned path.',
+            '',
+            '---',
+            '*Powered by [asqav](https://asqav.com) - AI agent governance made simple.*',
+        ].join('\n');
+    }
+    // Aggregate across all files
+    const totals = {
+        auditTrail: { pass: 0, gap: 0, files: [] },
+        policyEnforcement: { pass: 0, gap: 0, files: [] },
+        revocation: { pass: 0, gap: 0, files: [] },
+        humanOversight: { pass: 0, gap: 0, files: [] },
+        errorHandling: { pass: 0, gap: 0, files: [] },
+    };
+    const categories = [
+        { key: 'auditTrail', label: 'Audit Trail' },
+        { key: 'policyEnforcement', label: 'Policy Enforcement' },
+        { key: 'revocation', label: 'Revocation Capability' },
+        { key: 'humanOversight', label: 'Human Oversight' },
+        { key: 'errorHandling', label: 'Error Handling' },
+    ];
+    for (const result of results) {
+        for (const { key } of categories) {
+            if (result[key].pass) {
+                totals[key].pass += 1;
+            }
+            else {
+                totals[key].gap += 1;
+                totals[key].files.push(result.filePath);
+            }
+        }
+    }
+    // Calculate score: each category contributes 20 points, weighted by file pass rate
+    let score = 0;
     for (const { key } of categories) {
-      if (result[key].pass) {
-        totals[key].pass += 1;
-      } else {
-        totals[key].gap += 1;
-        totals[key].files.push(result.filePath);
-      }
+        const total = totals[key].pass + totals[key].gap;
+        if (total > 0) {
+            score += (totals[key].pass / total) * 20;
+        }
+        else {
+            score += 20; // No files = no gaps for this category
+        }
     }
-  }
-
-  // Calculate score: each category contributes 20 points, weighted by file pass rate
-  let score = 0;
-  for (const { key } of categories) {
-    const total = totals[key].pass + totals[key].gap;
-    if (total > 0) {
-      score += (totals[key].pass / total) * 20;
-    } else {
-      score += 20; // No files = no gaps for this category
+    score = Math.round(score);
+    // Determine badge
+    let badge;
+    if (score >= 80) {
+        badge = ':white_check_mark:';
     }
-  }
-  score = Math.round(score);
-
-  // Determine badge
-  let badge;
-  if (score >= 80) {
-    badge = ':white_check_mark:';
-  } else if (score >= 50) {
-    badge = ':warning:';
-  } else {
-    badge = ':x:';
-  }
-
-  const lines = [];
-  lines.push(`## :shield: AI Agent Governance Report`);
-  lines.push('');
-  lines.push(`| Metric | Value |`);
-  lines.push(`|--------|-------|`);
-  lines.push(`| **Compliance Score** | ${badge} **${score}/100** |`);
-  lines.push(`| **Agent files scanned** | ${results.length} |`);
-  lines.push(`| **Frameworks detected** | ${[...new Set(results.flatMap((r) => r.frameworks))].join(', ') || 'N/A'} |`);
-  lines.push('');
-
-  // Category breakdown
-  lines.push('### Governance Checks');
-  lines.push('');
-  lines.push('| Category | Status | Details |');
-  lines.push('|----------|--------|---------|');
-
-  const recommendations = {
-    auditTrail:
-      'Add `import asqav` and use `asqav.sign()` to create tamper-proof audit trails for agent actions. [Learn more](https://asqav.com/docs/audit-trails)',
-    policyEnforcement:
-      'Implement rate limits, scope restrictions, or action gating to control agent behavior. [Learn more](https://asqav.com/docs/policies)',
-    revocation:
-      'Add a kill switch or revocation mechanism so agents can be disabled in an emergency. [Learn more](https://asqav.com/docs/revocation)',
-    humanOversight:
-      'Add human-in-the-loop approval flows for high-risk agent actions. [Learn more](https://asqav.com/docs/human-oversight)',
-    errorHandling:
-      'Wrap agent calls in try/except blocks with proper error handling and fallback behavior. [Learn more](https://asqav.com/docs/error-handling)',
-  };
-
-  for (const { key, label } of categories) {
-    const t = totals[key];
-    const total = t.pass + t.gap;
-    if (t.gap === 0) {
-      lines.push(`| ${label} | :white_check_mark: PASS | ${t.pass}/${total} files covered |`);
-    } else {
-      const gapFiles = t.files.map((f) => `\`${f}\``).join(', ');
-      lines.push(`| ${label} | :x: GAP | ${t.gap}/${total} files missing coverage |`);
+    else if (score >= 50) {
+        badge = ':warning:';
     }
-  }
-
-  lines.push('');
-
-  // Recommendations section (only for gaps)
-  const gapCategories = categories.filter(({ key }) => totals[key].gap > 0);
-  if (gapCategories.length > 0) {
-    lines.push('### Recommendations');
+    else {
+        badge = ':x:';
+    }
+    const lines = [];
+    lines.push(`## :shield: AI Agent Governance Report`);
     lines.push('');
-    for (const { key, label } of gapCategories) {
-      lines.push(`- **${label}**: ${recommendations[key]}`);
+    lines.push(`| Metric | Value |`);
+    lines.push(`|--------|-------|`);
+    lines.push(`| **Compliance Score** | ${badge} **${score}/100** |`);
+    lines.push(`| **Agent files scanned** | ${results.length} |`);
+    lines.push(`| **Frameworks detected** | ${[...new Set(results.flatMap((r) => r.frameworks))].join(', ') || 'N/A'} |`);
+    lines.push('');
+    // Category breakdown
+    lines.push('### Governance Checks');
+    lines.push('');
+    lines.push('| Category | Status | Details |');
+    lines.push('|----------|--------|---------|');
+    const recommendations = {
+        auditTrail: 'Add `import asqav` and use `asqav.sign()` to create tamper-proof audit trails for agent actions. [Learn more](https://asqav.com/docs/sessions)',
+        policyEnforcement: 'Implement rate limits, scope restrictions, or action gating to control agent behavior. [Learn more](https://asqav.com/docs/agents)',
+        revocation: 'Add a kill switch or revocation mechanism so agents can be disabled in an emergency. [Learn more](https://asqav.com/docs/agents)',
+        humanOversight: 'Add human-in-the-loop approval flows for high-risk agent actions. [Learn more](https://asqav.com/docs/signing-groups)',
+        errorHandling: 'Wrap agent calls in try/except blocks with proper error handling and fallback behavior. [Learn more](https://asqav.com/docs/)',
+    };
+    for (const { key, label } of categories) {
+        const t = totals[key];
+        const total = t.pass + t.gap;
+        if (t.gap === 0) {
+            lines.push(`| ${label} | :white_check_mark: PASS | ${t.pass}/${total} files covered |`);
+        }
+        else {
+            const gapFiles = t.files.map((f) => `\`${f}\``).join(', ');
+            lines.push(`| ${label} | :x: GAP | ${t.gap}/${total} files missing coverage |`);
+        }
     }
     lines.push('');
-  }
-
-  // Per-file breakdown
-  lines.push('<details>');
-  lines.push('<summary>Per-file breakdown</summary>');
-  lines.push('');
-
-  for (const result of results) {
-    const checks = categories.map(({ key, label }) => {
-      const status = result[key].pass ? ':white_check_mark:' : ':x:';
-      return `${status} ${label}`;
-    });
-    lines.push(`**\`${result.filePath}\`**`);
-    lines.push(`- Frameworks: ${result.frameworks.join(', ')}`);
-    lines.push(`- ${checks.join(' | ')}`);
+    // Recommendations section (only for gaps)
+    const gapCategories = categories.filter(({ key }) => totals[key].gap > 0);
+    if (gapCategories.length > 0) {
+        lines.push('### Recommendations');
+        lines.push('');
+        for (const { key, label } of gapCategories) {
+            lines.push(`- **${label}**: ${recommendations[key]}`);
+        }
+        lines.push('');
+    }
+    // Per-file breakdown
+    lines.push('<details>');
+    lines.push('<summary>Per-file breakdown</summary>');
     lines.push('');
-  }
-
-  lines.push('</details>');
-  lines.push('');
-  lines.push('---');
-  lines.push('*Powered by [asqav](https://asqav.com) — AI agent governance made simple. Get the full platform for automated compliance, audit trails, and policy enforcement.*');
-
-  return lines.join('\n');
+    for (const result of results) {
+        const checks = categories.map(({ key, label }) => {
+            const status = result[key].pass ? ':white_check_mark:' : ':x:';
+            return `${status} ${label}`;
+        });
+        lines.push(`**\`${result.filePath}\`**`);
+        lines.push(`- Frameworks: ${result.frameworks.join(', ')}`);
+        lines.push(`- ${checks.join(' | ')}`);
+        lines.push('');
+    }
+    lines.push('</details>');
+    lines.push('');
+    lines.push('---');
+    lines.push('*Powered by [asqav](https://asqav.com) - AI agent governance made simple. Get the full platform for automated compliance, audit trails, and policy enforcement.*');
+    return lines.join('\n');
 }
-
-module.exports = { scanDirectory, analyzeFile, generateReport };
 
 
 /***/ }),
@@ -32191,127 +32345,12 @@ module.exports = parseParams
 /******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";
 /******/ 	
 /************************************************************************/
-var __webpack_exports__ = {};
-const core = __nccwpck_require__(7484);
-const github = __nccwpck_require__(3228);
-const path = __nccwpck_require__(6928);
-const { scanDirectory, analyzeFile, generateReport } = __nccwpck_require__(9863);
-
-async function run() {
-  try {
-    // Read inputs
-    const token = core.getInput('github-token', { required: true });
-    const scanPath = core.getInput('scan-path') || '.';
-    const failOnGaps = core.getInput('fail-on-gaps') === 'true';
-
-    // Resolve the scan path relative to the workspace
-    const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-    const fullScanPath = path.resolve(workspace, scanPath);
-
-    core.info(`Scanning for AI agent governance gaps in: ${fullScanPath}`);
-
-    // Step 1: Find all Python files with agent framework imports
-    const agentFiles = scanDirectory(fullScanPath);
-    core.info(`Found ${agentFiles.length} Python file(s) using AI agent frameworks`);
-
-    // Step 2: Analyse each file for governance patterns
-    const results = agentFiles.map(({ filePath, content }) => {
-      // Make the path relative to the workspace for cleaner reporting
-      const relativePath = path.relative(workspace, filePath);
-      const analysis = analyzeFile(relativePath, content);
-      return analysis;
-    });
-
-    // Step 3: Generate the compliance report
-    const report = generateReport(results);
-    core.info('Compliance report generated');
-
-    // Step 4: Post as a PR comment (if running in a PR context)
-    const context = github.context;
-
-    if (context.payload.pull_request) {
-      const octokit = github.getOctokit(token);
-      const prNumber = context.payload.pull_request.number;
-
-      // Check for an existing comment from this action to update instead of creating a new one
-      const { data: comments } = await octokit.rest.issues.listComments({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        issue_number: prNumber,
-      });
-
-      const botComment = comments.find(
-        (comment) =>
-          comment.user.type === 'Bot' &&
-          comment.body.includes('AI Agent Governance Report')
-      );
-
-      if (botComment) {
-        await octokit.rest.issues.updateComment({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
-          comment_id: botComment.id,
-          body: report,
-        });
-        core.info(`Updated existing PR comment #${botComment.id}`);
-      } else {
-        await octokit.rest.issues.createComment({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
-          issue_number: prNumber,
-          body: report,
-        });
-        core.info(`Posted compliance report as comment on PR #${prNumber}`);
-      }
-    } else {
-      core.info('Not running in a PR context — printing report to output');
-      core.info(report);
-    }
-
-    // Step 5: Set outputs
-    const totalFiles = results.length;
-    const gapCount = results.reduce((sum, r) => {
-      let gaps = 0;
-      if (!r.auditTrail.pass) gaps++;
-      if (!r.policyEnforcement.pass) gaps++;
-      if (!r.revocation.pass) gaps++;
-      if (!r.humanOversight.pass) gaps++;
-      if (!r.errorHandling.pass) gaps++;
-      return sum + gaps;
-    }, 0);
-
-    // Recalculate score for output
-    let score = 0;
-    const categories = ['auditTrail', 'policyEnforcement', 'revocation', 'humanOversight', 'errorHandling'];
-    for (const key of categories) {
-      const passCount = results.filter((r) => r[key].pass).length;
-      const total = results.length;
-      if (total > 0) {
-        score += (passCount / total) * 20;
-      } else {
-        score += 20;
-      }
-    }
-    score = Math.round(score);
-
-    core.setOutput('score', score.toString());
-    core.setOutput('agent-files', totalFiles.toString());
-    core.setOutput('gaps', gapCount.toString());
-    core.setOutput('report', report);
-
-    // Step 6: Optionally fail the check
-    if (failOnGaps && gapCount > 0) {
-      core.setFailed(
-        `AI agent governance scan found ${gapCount} gap(s) across ${totalFiles} file(s). Score: ${score}/100`
-      );
-    }
-  } catch (error) {
-    core.setFailed(`Action failed: ${error.message}`);
-  }
-}
-
-run();
-
-module.exports = __webpack_exports__;
+/******/ 	
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	// This entry module is referenced by other modules so it can't be inlined
+/******/ 	var __webpack_exports__ = __nccwpck_require__(9407);
+/******/ 	module.exports = __webpack_exports__;
+/******/ 	
 /******/ })()
 ;
