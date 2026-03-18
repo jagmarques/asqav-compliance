@@ -1,0 +1,22 @@
+name: 'AI Agent Governance Scanner'
+description: 'Scan your AI agent code for governance gaps — audit trails, policy enforcement, revocation, human oversight'
+author: 'asqav'
+branding:
+  icon: 'shield'
+  color: 'green'
+inputs:
+  github-token:
+    description: 'GitHub token for posting PR comments'
+    required: true
+    default: '${{ github.token }}'
+  scan-path:
+    description: 'Path to scan (default: entire repo)'
+    required: false
+    default: '.'
+  fail-on-gaps:
+    description: 'Fail the check if governance gaps are found'
+    required: false
+    default: 'false'
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
