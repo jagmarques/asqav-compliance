@@ -1,5 +1,5 @@
 name: 'AI Agent Governance Scanner'
-description: 'Scan your AI agent code for governance gaps — audit trails, policy enforcement, revocation, human oversight'
+description: 'Scan your AI agent code for governance gaps - audit trails, policy enforcement, revocation, human oversight'
 author: 'asqav'
 branding:
   icon: 'shield'
@@ -17,6 +17,15 @@ inputs:
     description: 'Fail the check if governance gaps are found'
     required: false
     default: 'false'
+outputs:
+  score:
+    description: 'Compliance score (0-100)'
+  agent-files:
+    description: 'Number of agent files found'
+  gaps:
+    description: 'Number of governance gaps found'
+  report:
+    description: 'Full compliance report in markdown'
 runs:
   using: 'node20'
   main: 'dist/index.js'
