@@ -1,14 +1,36 @@
-const fs = require('fs');
-const path = require('path');
+import * as fs from 'fs';
+import * as path from 'path';
+
+// --- Type Definitions ---
+
+export interface FileResult {
+  filePath: string;
+  content: string;
+}
+
+export interface GovCheck {
+  pass: boolean;
+  matches: string[];
+}
+
+export interface AnalysisResult {
+  filePath: string;
+  frameworks: string[];
+  auditTrail: GovCheck;
+  policyEnforcement: GovCheck;
+  revocation: GovCheck;
+  humanOversight: GovCheck;
+  errorHandling: GovCheck;
+}
 
 // --- Pattern Definitions ---
 
-const AGENT_FRAMEWORK_PATTERNS = [
+const AGENT_FRAMEWORK_PATTERNS: RegExp[] = [
   /^\s*(?:import\s+(?:langchain|crewai|openai|anthropic|autogen|google\.generativeai|smolagents|llama_index|haystack|semantic_kernel))/m,
-  /^\s*(?:from\s+(?:langchain|crewai|openai|anthropic|autogen|google\.generativeai|smolagents|llama_index|haystack|semantic_kernel)\s+import)/m,
+  /^\s*(?:from\s+(?:langchain|crewai|openai|anthropic|autogen|google\.generativeai|smolagents|llama_index|haystack|semantic_kernel)[\s.])/m,
 ];
 
-const AUDIT_TRAIL_PATTERNS = [
+const AUDIT_TRAIL_PATTERNS: RegExp[] = [
   /import\s+asqav/,
   /from\s+asqav\s+import/,
   /asqav\./,
@@ -21,26 +43,26 @@ const AUDIT_TRAIL_PATTERNS = [
   /logger\.\w+\(/,
 ];
 
-const POLICY_PATTERNS = [
+const POLICY_PATTERNS: RegExp[] = [
   /rate_limit/i,
   /ratelimit/i,
   /policy/i,
-  /scope/i,
+  /\bscope\b/i,
   /allowed_actions/i,
   /action_gate/i,
-  /guard/i,
+  /\bguard\b/i,
   /permission/i,
   /restrict/i,
   /whitelist/i,
   /allowlist/i,
   /max_iterations/i,
   /max_steps/i,
-  /timeout/i,
+  /\btimeout\b/i,
 ];
 
-const REVOCATION_PATTERNS = [
+const REVOCATION_PATTERNS: RegExp[] = [
   /revoke/i,
-  /disable/i,
+  /\bdisable[d]?\b/i,
   /kill_switch/i,
   /killswitch/i,
   /suspend/i,
@@ -50,11 +72,11 @@ const REVOCATION_PATTERNS = [
   /circuit_breaker/i,
 ];
 
-const HUMAN_OVERSIGHT_PATTERNS = [
+const HUMAN_OVERSIGHT_PATTERNS: RegExp[] = [
   /human_in_the_loop/i,
   /human_in_loop/i,
   /hitl/i,
-  /approval/i,
+  /\bapproval\b/i,
   /approve/i,
   /multi_party/i,
   /require_approval/i,
@@ -65,22 +87,22 @@ const HUMAN_OVERSIGHT_PATTERNS = [
   /human_oversight/i,
 ];
 
-const ERROR_HANDLING_PATTERN = /try\s*:/;
+const ERROR_HANDLING_PATTERN: RegExp = /try\s*:/;
 
 // We also look for except blocks that follow try blocks to validate real try/except usage
-const EXCEPT_PATTERN = /except\s*(?:\w|[:(])/;
+const EXCEPT_PATTERN: RegExp = /except\s*(?:\w|[:(])/;
 
 // --- Core Functions ---
 
 /**
  * Recursively scan a directory for Python files that use AI agent frameworks.
- * Returns an array of { filePath, content } objects.
+ * Returns an array of FileResult objects.
  */
-function scanDirectory(dirPath) {
-  const results = [];
+export function scanDirectory(dirPath: string): FileResult[] {
+  const results: FileResult[] = [];
 
-  function walk(currentPath) {
-    let entries;
+  function walk(currentPath: string): void {
+    let entries: fs.Dirent[];
     try {
       entries = fs.readdirSync(currentPath, { withFileTypes: true });
     } catch (err) {
@@ -89,11 +111,12 @@ function scanDirectory(dirPath) {
     }
 
     for (const entry of entries) {
-      const fullPath = path.join(currentPath, entry.name);
+      if (entry.isSymbolicLink()) continue;
+      const fullPath: string = path.join(currentPath, entry.name);
 
       // Skip common non-essential directories
       if (entry.isDirectory()) {
-        const skip = [
+        const skip: string[] = [
           'node_modules', '.git', '__pycache__', '.venv', 'venv',
           'env', '.env', '.tox', '.mypy_cache', '.pytest_cache',
           'dist', 'build', '.eggs',
@@ -107,7 +130,10 @@ function scanDirectory(dirPath) {
       // Only process Python files
       if (!entry.name.endsWith('.py')) continue;
 
-      let content;
+      const stat: fs.Stats = fs.statSync(fullPath);
+      if (stat.size > 1024 * 1024) continue; // skip files > 1MB
+
+      let content: string;
       try {
         content = fs.readFileSync(fullPath, 'utf-8');
       } catch (err) {
@@ -115,7 +141,7 @@ function scanDirectory(dirPath) {
       }
 
       // Check if this file imports any agent framework
-      const usesAgent = AGENT_FRAMEWORK_PATTERNS.some((pat) => pat.test(content));
+      const usesAgent: boolean = AGENT_FRAMEWORK_PATTERNS.some((pat: RegExp) => pat.test(content));
       if (usesAgent) {
         results.push({ filePath: fullPath, content });
       }
@@ -127,70 +153,47 @@ function scanDirectory(dirPath) {
 }
 
 /**
- * Analyse a single file's content for governance patterns.
- * Returns an object describing which checks pass.
+ * Helper to check patterns against content and return a GovCheck.
  */
-function analyzeFile(filePath, content) {
-  const detectedFrameworks = [];
+function checkPatterns(patterns: RegExp[], content: string): GovCheck {
+  return {
+    pass: patterns.some((p: RegExp) => p.test(content)),
+    matches: patterns
+      .filter((p: RegExp) => p.test(content))
+      .map((p: RegExp) => {
+        const m: RegExpMatchArray | null = content.match(p);
+        return m ? m[0].trim() : null;
+      })
+      .filter((v): v is string => v !== null),
+  };
+}
+
+/**
+ * Analyse a single file's content for governance patterns.
+ * Returns an AnalysisResult describing which checks pass.
+ */
+export function analyzeFile(filePath: string, content: string): AnalysisResult {
+  const detectedFrameworks: string[] = [];
   for (const pat of AGENT_FRAMEWORK_PATTERNS) {
-    const match = content.match(pat);
+    const match: RegExpMatchArray | null = content.match(pat);
     if (match) {
       // Extract the framework name from the import line
-      const line = match[0].trim();
-      const fwMatch = line.match(/(?:import|from)\s+([\w.]+)/);
-      if (fwMatch && !detectedFrameworks.includes(fwMatch[1])) {
-        detectedFrameworks.push(fwMatch[1]);
+      const line: string = match[0].trim();
+      const fwMatch: RegExpMatchArray | null = line.match(/(?:import|from)\s+([\w.]+)/);
+      if (fwMatch && !detectedFrameworks.includes(fwMatch[1].replace(/\.$/, ''))) {
+        detectedFrameworks.push(fwMatch[1].replace(/\.$/, ''));
       }
     }
   }
 
-  const auditTrail = {
-    pass: AUDIT_TRAIL_PATTERNS.some((p) => p.test(content)),
-    matches: AUDIT_TRAIL_PATTERNS
-      .filter((p) => p.test(content))
-      .map((p) => {
-        const m = content.match(p);
-        return m ? m[0].trim() : null;
-      })
-      .filter(Boolean),
-  };
+  const auditTrail: GovCheck = checkPatterns(AUDIT_TRAIL_PATTERNS, content);
+  const policyEnforcement: GovCheck = checkPatterns(POLICY_PATTERNS, content);
+  const revocation: GovCheck = checkPatterns(REVOCATION_PATTERNS, content);
+  const humanOversight: GovCheck = checkPatterns(HUMAN_OVERSIGHT_PATTERNS, content);
 
-  const policyEnforcement = {
-    pass: POLICY_PATTERNS.some((p) => p.test(content)),
-    matches: POLICY_PATTERNS
-      .filter((p) => p.test(content))
-      .map((p) => {
-        const m = content.match(p);
-        return m ? m[0].trim() : null;
-      })
-      .filter(Boolean),
-  };
-
-  const revocation = {
-    pass: REVOCATION_PATTERNS.some((p) => p.test(content)),
-    matches: REVOCATION_PATTERNS
-      .filter((p) => p.test(content))
-      .map((p) => {
-        const m = content.match(p);
-        return m ? m[0].trim() : null;
-      })
-      .filter(Boolean),
-  };
-
-  const humanOversight = {
-    pass: HUMAN_OVERSIGHT_PATTERNS.some((p) => p.test(content)),
-    matches: HUMAN_OVERSIGHT_PATTERNS
-      .filter((p) => p.test(content))
-      .map((p) => {
-        const m = content.match(p);
-        return m ? m[0].trim() : null;
-      })
-      .filter(Boolean),
-  };
-
-  const hasTry = ERROR_HANDLING_PATTERN.test(content);
-  const hasExcept = EXCEPT_PATTERN.test(content);
-  const errorHandling = {
+  const hasTry: boolean = ERROR_HANDLING_PATTERN.test(content);
+  const hasExcept: boolean = EXCEPT_PATTERN.test(content);
+  const errorHandling: GovCheck = {
     pass: hasTry && hasExcept,
     matches: hasTry && hasExcept ? ['try/except'] : [],
   };
@@ -206,10 +209,24 @@ function analyzeFile(filePath, content) {
   };
 }
 
+// Type for the category keys used in generateReport
+type CategoryKey = 'auditTrail' | 'policyEnforcement' | 'revocation' | 'humanOversight' | 'errorHandling';
+
+interface CategoryDef {
+  key: CategoryKey;
+  label: string;
+}
+
+interface CategoryTotal {
+  pass: number;
+  gap: number;
+  files: string[];
+}
+
 /**
  * Generate a Markdown compliance report from analysis results.
  */
-function generateReport(results) {
+export function generateReport(results: AnalysisResult[]): string {
   if (results.length === 0) {
     return [
       '## :shield: AI Agent Governance Report',
@@ -217,12 +234,12 @@ function generateReport(results) {
       '**No AI agent framework usage detected.** No Python files importing known agent frameworks (LangChain, CrewAI, OpenAI, Anthropic, AutoGen, etc.) were found in the scanned path.',
       '',
       '---',
-      '*Powered by [asqav](https://asqav.com) — AI agent governance made simple.*',
+      '*Powered by [asqav](https://asqav.com) - AI agent governance made simple.*',
     ].join('\n');
   }
 
   // Aggregate across all files
-  const totals = {
+  const totals: Record<CategoryKey, CategoryTotal> = {
     auditTrail: { pass: 0, gap: 0, files: [] },
     policyEnforcement: { pass: 0, gap: 0, files: [] },
     revocation: { pass: 0, gap: 0, files: [] },
@@ -230,7 +247,7 @@ function generateReport(results) {
     errorHandling: { pass: 0, gap: 0, files: [] },
   };
 
-  const categories = [
+  const categories: CategoryDef[] = [
     { key: 'auditTrail', label: 'Audit Trail' },
     { key: 'policyEnforcement', label: 'Policy Enforcement' },
     { key: 'revocation', label: 'Revocation Capability' },
@@ -250,9 +267,9 @@ function generateReport(results) {
   }
 
   // Calculate score: each category contributes 20 points, weighted by file pass rate
-  let score = 0;
+  let score: number = 0;
   for (const { key } of categories) {
-    const total = totals[key].pass + totals[key].gap;
+    const total: number = totals[key].pass + totals[key].gap;
     if (total > 0) {
       score += (totals[key].pass / total) * 20;
     } else {
@@ -262,7 +279,7 @@ function generateReport(results) {
   score = Math.round(score);
 
   // Determine badge
-  let badge;
+  let badge: string;
   if (score >= 80) {
     badge = ':white_check_mark:';
   } else if (score >= 50) {
@@ -271,14 +288,14 @@ function generateReport(results) {
     badge = ':x:';
   }
 
-  const lines = [];
+  const lines: string[] = [];
   lines.push(`## :shield: AI Agent Governance Report`);
   lines.push('');
   lines.push(`| Metric | Value |`);
   lines.push(`|--------|-------|`);
   lines.push(`| **Compliance Score** | ${badge} **${score}/100** |`);
   lines.push(`| **Agent files scanned** | ${results.length} |`);
-  lines.push(`| **Frameworks detected** | ${[...new Set(results.flatMap((r) => r.frameworks))].join(', ') || 'N/A'} |`);
+  lines.push(`| **Frameworks detected** | ${[...new Set(results.flatMap((r: AnalysisResult) => r.frameworks))].join(', ') || 'N/A'} |`);
   lines.push('');
 
   // Category breakdown
@@ -287,26 +304,26 @@ function generateReport(results) {
   lines.push('| Category | Status | Details |');
   lines.push('|----------|--------|---------|');
 
-  const recommendations = {
+  const recommendations: Record<CategoryKey, string> = {
     auditTrail:
-      'Add `import asqav` and use `asqav.sign()` to create tamper-proof audit trails for agent actions. [Learn more](https://asqav.com/docs/audit-trails)',
+      'Add `import asqav` and use `asqav.sign()` to create tamper-proof audit trails for agent actions. [Learn more](https://asqav.com/docs/sessions)',
     policyEnforcement:
-      'Implement rate limits, scope restrictions, or action gating to control agent behavior. [Learn more](https://asqav.com/docs/policies)',
+      'Implement rate limits, scope restrictions, or action gating to control agent behavior. [Learn more](https://asqav.com/docs/agents)',
     revocation:
-      'Add a kill switch or revocation mechanism so agents can be disabled in an emergency. [Learn more](https://asqav.com/docs/revocation)',
+      'Add a kill switch or revocation mechanism so agents can be disabled in an emergency. [Learn more](https://asqav.com/docs/agents)',
     humanOversight:
-      'Add human-in-the-loop approval flows for high-risk agent actions. [Learn more](https://asqav.com/docs/human-oversight)',
+      'Add human-in-the-loop approval flows for high-risk agent actions. [Learn more](https://asqav.com/docs/signing-groups)',
     errorHandling:
-      'Wrap agent calls in try/except blocks with proper error handling and fallback behavior. [Learn more](https://asqav.com/docs/error-handling)',
+      'Wrap agent calls in try/except blocks with proper error handling and fallback behavior. [Learn more](https://asqav.com/docs/)',
   };
 
   for (const { key, label } of categories) {
-    const t = totals[key];
-    const total = t.pass + t.gap;
+    const t: CategoryTotal = totals[key];
+    const total: number = t.pass + t.gap;
     if (t.gap === 0) {
       lines.push(`| ${label} | :white_check_mark: PASS | ${t.pass}/${total} files covered |`);
     } else {
-      const gapFiles = t.files.map((f) => `\`${f}\``).join(', ');
+      const gapFiles: string = t.files.map((f: string) => `\`${f}\``).join(', ');
       lines.push(`| ${label} | :x: GAP | ${t.gap}/${total} files missing coverage |`);
     }
   }
@@ -314,7 +331,7 @@ function generateReport(results) {
   lines.push('');
 
   // Recommendations section (only for gaps)
-  const gapCategories = categories.filter(({ key }) => totals[key].gap > 0);
+  const gapCategories: CategoryDef[] = categories.filter(({ key }: CategoryDef) => totals[key].gap > 0);
   if (gapCategories.length > 0) {
     lines.push('### Recommendations');
     lines.push('');
@@ -330,8 +347,8 @@ function generateReport(results) {
   lines.push('');
 
   for (const result of results) {
-    const checks = categories.map(({ key, label }) => {
-      const status = result[key].pass ? ':white_check_mark:' : ':x:';
+    const checks: string[] = categories.map(({ key, label }: CategoryDef) => {
+      const status: string = result[key].pass ? ':white_check_mark:' : ':x:';
       return `${status} ${label}`;
     });
     lines.push(`**\`${result.filePath}\`**`);
@@ -343,9 +360,7 @@ function generateReport(results) {
   lines.push('</details>');
   lines.push('');
   lines.push('---');
-  lines.push('*Powered by [asqav](https://asqav.com) — AI agent governance made simple. Get the full platform for automated compliance, audit trails, and policy enforcement.*');
+  lines.push('*Powered by [asqav](https://asqav.com) - AI agent governance made simple. Get the full platform for automated compliance, audit trails, and policy enforcement.*');
 
   return lines.join('\n');
 }
-
-module.exports = { scanDirectory, analyzeFile, generateReport };
