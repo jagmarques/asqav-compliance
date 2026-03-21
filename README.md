@@ -2,6 +2,8 @@
 
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![GitHub Action](https://img.shields.io/badge/GitHub%20Action-AI%20Agent%20Governance-blue.svg)](https://github.com/jagmarques/asqav-compliance)
+[![GitHub stars](https://img.shields.io/github/stars/jagmarques/asqav-compliance.svg?style=social&label=Star)](https://github.com/jagmarques/asqav-compliance)
+[![Supported Standards](https://img.shields.io/badge/standards-SOC2%20%7C%20ISO%2027001-purple.svg)](https://asqav.com)
 
 **Scan your AI agent code for governance gaps.** Think "Dependabot but for AI agent compliance."
 
