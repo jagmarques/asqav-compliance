@@ -1,8 +1,10 @@
 <p align="center">
-  <img src="https://asqav.com/logo-text.svg" alt="asqav" width="200">
-</p>
-<p align="center">
-  <em>Scan your AI agent code for governance gaps</em>
+  <a href="https://asqav.com">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://asqav.com/logo-text-dark.png">
+      <img src="https://asqav.com/logo-text.svg" alt="asqav" width="200">
+    </picture>
+  </a>
 </p>
 
 # asqav-compliance
