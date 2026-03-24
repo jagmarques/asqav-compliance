@@ -1,3 +1,10 @@
+<p align="center">
+  <img src="https://asqav.com/logo-text.svg" alt="asqav" width="200">
+</p>
+<p align="center">
+  <em>Scan your AI agent code for governance gaps</em>
+</p>
+
 # asqav-compliance
 
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
