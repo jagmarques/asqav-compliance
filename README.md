@@ -12,7 +12,7 @@
   <a href="https://github.com/jagmarques/asqav-compliance"><img src="https://img.shields.io/github/stars/jagmarques/asqav-compliance?style=social" alt="GitHub stars"></a>
 </p>
 
-# asqav-compliance
+# Compliance Scanner
 
 Scan your AI agent code for governance gaps. Think "Dependabot but for AI agent compliance."
 
