@@ -2,19 +2,22 @@
   <a href="https://asqav.com">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="https://asqav.com/logo-text-dark.png">
-      <img src="https://asqav.com/logo-text.svg" alt="asqav" width="200">
+      <img src="https://asqav.com/logo-text.png" alt="asqav" width="200">
     </picture>
   </a>
+</p>
+<p align="center">
+  Governance for AI agents. Audit trails, policy enforcement, and compliance.
+</p>
+<p align="center">
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square&logo=opensourceinitiative&logoColor=white" alt="License: MIT"></a>
+  <a href="https://github.com/jagmarques/asqav-compliance"><img src="https://img.shields.io/badge/GitHub%20Action-AI%20Agent%20Governance-blue.svg?style=flat-square" alt="GitHub Action"></a>
+  <a href="https://github.com/jagmarques/asqav-compliance"><img src="https://img.shields.io/github/stars/jagmarques/asqav-compliance?style=social" alt="GitHub stars"></a>
 </p>
 
 # asqav-compliance
 
-[![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![GitHub Action](https://img.shields.io/badge/GitHub%20Action-AI%20Agent%20Governance-blue.svg)](https://github.com/jagmarques/asqav-compliance)
-[![GitHub stars](https://img.shields.io/github/stars/jagmarques/asqav-compliance.svg?style=social&label=Star)](https://github.com/jagmarques/asqav-compliance)
-[![Supported Standards](https://img.shields.io/badge/standards-SOC2%20%7C%20ISO%2027001-purple.svg)](https://asqav.com)
-
-**Scan your AI agent code for governance gaps.** Think "Dependabot but for AI agent compliance."
+Scan your AI agent code for governance gaps. Think "Dependabot but for AI agent compliance."
 
 This free GitHub Action automatically scans your repository for AI agent framework usage (LangChain, CrewAI, OpenAI, Anthropic, AutoGen, and more) and checks whether each agent file follows governance best practices. It posts a compliance report directly as a PR comment on every pull request.
 
