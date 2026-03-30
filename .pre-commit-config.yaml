@@ -1,0 +1,20 @@
+# Pre-commit hook configuration for ASQAV Compliance Scanner
+# See https://pre-commit.com for usage instructions
+#
+# Usage:
+#   1. Install pre-commit: pip install pre-commit
+#   2. Install hooks: pre-commit install
+#   3. Run manually: pre-commit run --all-files
+
+repos:
+  - repo: local
+    hooks:
+      - id: asqav-compliance-scan
+        name: ASQAV Compliance Scan
+        description: Run AI agent governance compliance checks before commit
+        entry: npm run test
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+        files: \.(ts|js|json|ya?ml)$
