@@ -70,6 +70,27 @@ To add an entirely new category:
 
 3. **Verify the PR comment output** looks correct
 
+## Local Development with Pre-commit Hooks
+
+To run compliance checks automatically before each commit:
+
+1. **Install pre-commit** (requires Python):
+   ```bash
+   pip install pre-commit
+   ```
+
+2. **Install the hooks**:
+   ```bash
+   pre-commit install
+   ```
+
+3. **Run manually** (optional):
+   ```bash
+   pre-commit run --all-files
+   ```
+
+The pre-commit hook will run `npm test` to ensure your changes don't break existing functionality.
+
 ## Submitting Your Contribution
 
 1. **Fork the repository**
