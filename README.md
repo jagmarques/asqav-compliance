@@ -20,36 +20,15 @@
 
 # Compliance Scanner
 
-Scan your AI agent code for governance gaps. Think "Dependabot but for AI agent compliance."
+**CI/CD compliance scanner for AI agents.** Catches governance gaps in your AI agent code on every pull request - audit trails, policy enforcement, human oversight, and more. Maps to EU AI Act, DORA, and ISO 42001 requirements.
 
-This free GitHub Action automatically scans your repository for AI agent framework usage (LangChain, CrewAI, OpenAI, Anthropic, AutoGen, and more) and checks whether each agent file follows governance best practices. It posts a compliance report directly as a PR comment on every pull request.
-
----
-
-## What It Does
-
-On every pull request, asqav-compliance will:
-
-1. **Find** all Python files that import AI agent frameworks
-2. **Analyse** each file for five governance categories
-3. **Score** your repository's compliance (0-100)
-4. **Post** a detailed report as a PR comment with pass/gap status and recommendations
-
-### Example PR Comment
-
-The action posts a formatted comment on your PR that includes:
-
-- An overall compliance score with a visual badge
-- A summary table showing how many agent files were scanned and which frameworks were detected
-- A per-category breakdown (PASS or GAP) with details
-- Actionable recommendations for each gap, linking to documentation
-- A collapsible per-file breakdown so you can see exactly which files need attention
+Think of it as "Dependabot but for AI compliance."
 
 ---
 
 ## Quick Start
 
-Add this workflow file to your repository at `.github/workflows/ai-governance.yml`:
+Add this to `.github/workflows/ai-governance.yml` and you're done:
 
 ```yaml
 name: AI Agent Governance
@@ -65,9 +44,68 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-That's it. The action will now run on every pull request and post a governance report.
+The action scans every PR for AI agent framework usage and posts a compliance report as a comment.
 
-### Inputs
+---
+
+## Sample Output
+
+When the action runs, it posts a report like this directly on your PR:
+
+```
+## AI Agent Governance Report
+
+| Metric                  | Value                          |
+|-------------------------|--------------------------------|
+| Compliance Score        | 60/100                         |
+| Agent files scanned     | 3                              |
+| Frameworks detected     | langchain, openai, crewai      |
+
+### Governance Checks
+
+| Category             | Status | Details                      |
+|----------------------|--------|------------------------------|
+| Audit Trail          | PASS   | 3/3 files covered            |
+| Policy Enforcement   | PASS   | 3/3 files covered            |
+| Revocation Capability| GAP    | 2/3 files missing coverage   |
+| Human Oversight      | GAP    | 3/3 files missing coverage   |
+| Error Handling       | PASS   | 3/3 files covered            |
+
+### Recommendations
+
+- Revocation Capability: Add a kill switch or revocation mechanism
+  so agents can be disabled in an emergency.
+- Human Oversight: Add human-in-the-loop approval flows for
+  high-risk agent actions.
+```
+
+Each gap includes actionable recommendations with links to documentation.
+
+---
+
+## What It Checks
+
+The scanner evaluates five governance categories for every Python file that imports an AI agent framework:
+
+| Category | What it looks for |
+|----------|-------------------|
+| **Audit Trail** | Logging, `asqav.sign()`, audit logs, action logging |
+| **Policy Enforcement** | Rate limits, scope restrictions, action gating, timeouts |
+| **Revocation Capability** | Kill switches, circuit breakers, emergency stop mechanisms |
+| **Human Oversight** | Human-in-the-loop flows, approval gates, manual review steps |
+| **Error Handling** | try/except blocks around agent calls |
+
+### Regulatory Mapping
+
+These checks align with requirements from:
+
+- **EU AI Act** - Article 14 (human oversight), Article 15 (accuracy/robustness)
+- **DORA** - ICT risk management, incident response, operational resilience
+- **ISO 42001** - AI management system controls and governance
+
+---
+
+## Inputs
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
@@ -75,7 +113,7 @@ That's it. The action will now run on every pull request and post a governance r
 | `scan-path` | Path to scan (relative to repo root) | No | `.` (entire repo) |
 | `fail-on-gaps` | Fail the check if governance gaps are found | No | `false` |
 
-### Outputs
+## Outputs
 
 | Output | Description |
 |--------|-------------|
@@ -84,72 +122,53 @@ That's it. The action will now run on every pull request and post a governance r
 | `gaps` | Total number of governance gaps |
 | `report` | Full Markdown report |
 
-### Advanced Example
+---
+
+## Advanced Usage
+
+### Block PRs that fail compliance
 
 ```yaml
-name: AI Agent Governance
-on: [pull_request]
+- uses: jagmarques/asqav-compliance@v1
+  id: scan
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    scan-path: 'src/agents'
+    fail-on-gaps: 'true'
 
+- name: Print score
+  run: echo "Compliance score: ${{ steps.scan.outputs.score }}/100"
+```
+
+### Use in a matrix with other checks
+
+```yaml
 jobs:
   compliance:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: jagmarques/asqav-compliance@v1
-        id: scan
+        id: governance
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          scan-path: 'src/agents'
           fail-on-gaps: 'true'
 
-      - name: Print score
-        run: echo "Compliance score: ${{ steps.scan.outputs.score }}/100"
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pytest
 ```
-
----
-
-## What It Checks
-
-The scanner evaluates five governance categories for every Python file that imports an AI agent framework:
-
-### 1. Audit Trail
-Are agent actions being logged or cryptographically signed?
-
-Looks for: `import asqav`, `asqav.sign()`, `logging.getLogger`, `audit_trail`, `log_action`, `action_log`
-
-### 2. Policy Enforcement
-Are there constraints on what agents can do?
-
-Looks for: `rate_limit`, `policy`, `scope`, `allowed_actions`, `action_gate`, `guard`, `max_iterations`, `timeout`
-
-### 3. Revocation Capability
-Can agents be disabled or shut down in an emergency?
-
-Looks for: `revoke`, `disable`, `kill_switch`, `suspend`, `terminate`, `emergency_stop`, `circuit_breaker`
-
-### 4. Human Oversight
-Is there a human-in-the-loop for high-risk actions?
-
-Looks for: `human_in_the_loop`, `hitl`, `approval`, `require_approval`, `multi_party`, `manual_review`
-
-### 5. Error Handling
-Are agent calls wrapped in proper error handling?
-
-Looks for: `try/except` blocks around agent code
 
 ---
 
 ## Scoring
 
-The compliance score ranges from **0 to 100**:
+Each of the 5 categories contributes up to 20 points. Points are proportional to the percentage of agent files that pass each check.
 
-- Each of the 5 categories contributes up to **20 points**
-- Points are proportional to the percentage of agent files that pass each check
-- If all agent files pass all checks, the score is **100**
-
-| Score Range | Meaning |
-|-------------|---------|
+| Score | Meaning |
+|-------|---------|
 | 80-100 | Strong governance posture |
 | 50-79 | Some gaps to address |
 | 0-49 | Significant governance gaps |
@@ -158,38 +177,39 @@ The compliance score ranges from **0 to 100**:
 
 ## Supported Frameworks
 
-The scanner currently detects these AI agent frameworks:
+Works out of the box with 10 AI agent frameworks:
 
-- [LangChain](https://langchain.com/)
-- [CrewAI](https://crewai.com/)
-- [OpenAI](https://platform.openai.com/)
-- [Anthropic](https://anthropic.com/)
-- [AutoGen](https://microsoft.github.io/autogen/)
-- [Google Generative AI (Gemini)](https://ai.google.dev/)
-- [Smol Agents](https://huggingface.co/docs/smolagents/)
-- [LlamaIndex](https://www.llamaindex.ai/)
-- [Haystack](https://haystack.deepset.ai/)
+- [LangChain](https://langchain.com/) / [LlamaIndex](https://www.llamaindex.ai/) / [Haystack](https://haystack.deepset.ai/)
+- [CrewAI](https://crewai.com/) / [AutoGen](https://microsoft.github.io/autogen/) / [Smol Agents](https://huggingface.co/docs/smolagents/)
+- [OpenAI](https://platform.openai.com/) / [Anthropic](https://anthropic.com/) / [Google Generative AI](https://ai.google.dev/)
 - [Semantic Kernel](https://learn.microsoft.com/semantic-kernel/)
 
 ---
 
-## Full Governance Platform
+## Related Projects
 
-This GitHub Action provides a free, lightweight compliance scan. For the full governance platform with:
+| Project | Description |
+|---------|-------------|
+| [asqav-sdk](https://github.com/jagmarques/asqav-sdk) | Python SDK for AI agent governance - audit trails, policy enforcement, signing |
+| [asqav-mcp](https://github.com/jagmarques/asqav-mcp) | MCP server for AI agent governance - policy checks and compliance via Model Context Protocol |
 
-- Cryptographic audit trails with `asqav.sign()`
-- Automated policy enforcement
-- Real-time agent monitoring
-- Compliance dashboards and reporting
-- SOC 2 and ISO 27001 evidence generation
-
-Visit **[asqav.com](https://asqav.com)** to learn more.
+Use the SDK for runtime governance. Use this action for CI/CD compliance checks. Use MCP for AI-native tool integration.
 
 ---
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request.
+Contributions are welcome. Check the [open issues](https://github.com/jagmarques/asqav-compliance/issues) for good starting points.
+
+The scanner is built with TypeScript and runs as a GitHub Action using Node 20. To develop locally:
+
+```bash
+git clone https://github.com/jagmarques/asqav-compliance.git
+cd asqav-compliance
+npm install
+npm run build
+npm test
+```
 
 ## License
 
