@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/asqav/asqav-compliance.git"
+    "url": "https://github.com/jagmarques/asqav-compliance.git"
   },
   "license": "MIT",
   "author": "asqav",
