@@ -26,8 +26,8 @@ export interface AnalysisResult {
 // --- Pattern Definitions ---
 
 const AGENT_FRAMEWORK_PATTERNS: RegExp[] = [
-  /^\s*(?:import\s+(?:langchain|crewai|openai|anthropic|autogen|google\.generativeai|smolagents|llama_index|haystack|semantic_kernel))/m,
-  /^\s*(?:from\s+(?:langchain|crewai|openai|anthropic|autogen|google\.generativeai|smolagents|llama_index|haystack|semantic_kernel)[\s.])/m,
+  /^\s*(?:import\s+(?:langchain|crewai|openai|anthropic|autogen|google\.generativeai|smolagents|llama_index|haystack|semantic_kernel|dspy|pydantic_ai))/m,
+  /^\s*(?:from\s+(?:langchain|crewai|openai|anthropic|autogen|google\.generativeai|smolagents|llama_index|haystack|semantic_kernel|dspy|pydantic_ai)[\s.])/m,
 ];
 
 const AUDIT_TRAIL_PATTERNS: RegExp[] = [
