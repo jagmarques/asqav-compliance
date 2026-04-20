@@ -68,7 +68,7 @@ async function run(): Promise<void> {
       });
 
       const botComment = comments.find(
-        (comment) =>
+        (comment: { user?: { type?: string } | null; body?: string | null }) =>
           comment.user?.type === 'Bot' &&
           comment.body?.includes('AI Agent Governance Report')
       );
