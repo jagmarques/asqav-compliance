@@ -48,6 +48,22 @@ The action scans every PR for AI agent framework usage and posts a compliance re
 
 ---
 
+## Data handling
+
+This GitHub Action runs entirely inside your repository's CI runner. It reads the changed files in the pull request diff, performs static pattern matching, and posts the resulting Markdown report as a PR comment via the GitHub API. The Action does not transmit your code, prompts, or agent context to the Asqav cloud or any third-party service.
+
+If you separately use the `asqav` Python SDK or `@asqav/sdk` at runtime, those have their own data handling. By default, both SDKs auto-detect the Asqav cloud (`*.asqav.com`) and apply hash-only mode for GDPR-aware data minimization, sending only a hash plus a small metadata bag (action_type, agent_id, session_id, model_name, tool_name). For self-hosted deployments, the SDKs send the full context to the server you control. You can override per call:
+
+```typescript
+import { init } from '@asqav/sdk';
+
+await init({ apiKey: 'sk_...', baseUrl: 'https://api.asqav.com', mode: 'hash-only' });
+```
+
+See `docs/canonicalization.md` in the SDK repo for the canonicalization spec and conformance vectors.
+
+---
+
 ## Sample Output
 
 When the action runs, it posts a report like this directly on your PR:

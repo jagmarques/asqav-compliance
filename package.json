@@ -1,6 +1,6 @@
 {
   "name": "asqav-compliance",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "GitHub Action: AI agent governance compliance scanner",
   "main": "dist/index.js",
   "repository": {
