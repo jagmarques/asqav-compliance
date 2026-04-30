@@ -60,7 +60,7 @@ import { init } from '@asqav/sdk';
 await init({ apiKey: 'sk_...', baseUrl: 'https://api.asqav.com', mode: 'hash-only' });
 ```
 
-See `docs/canonicalization.md` in the SDK repo for the canonicalization spec and conformance vectors.
+See [docs/fingerprint-spec.md](https://github.com/jagmarques/asqav-sdk/blob/main/docs/fingerprint-spec.md) in the SDK repo for the fingerprint spec and conformance vectors.
 
 ---
 
