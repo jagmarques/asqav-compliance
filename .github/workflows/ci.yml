@@ -14,3 +14,25 @@ jobs:
           node-version: "20"
       - run: npm ci
       - run: npx tsc --noEmit
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+      - run: npm ci
+      - run: npm test
+
+  ci-ok:
+    if: ${{ always() }}
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gate
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ] || [ "${{ needs.test.result }}" != "success" ]; then
+            echo "lint=${{ needs.lint.result }} test=${{ needs.test.result }}"
+            exit 1
+          fi
