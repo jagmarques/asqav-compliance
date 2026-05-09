@@ -1,8 +1,6 @@
 import * as assert from 'assert';
 import { analyzeFile, generateReport } from './scanner';
 
-// --- Test Helpers ---
-
 let passed: number = 0;
 let failed: number = 0;
 
@@ -19,13 +17,9 @@ function test(name: string, fn: () => void): void {
   }
 }
 
-// --- Tests ---
-
 console.log('\nRunning scanner tests...\n');
 
-// -------------------------------------------------------------------------
-// analyzeFile: detect agent framework imports
-// -------------------------------------------------------------------------
+// === analyzeFile: framework detection ===
 
 test('detects langchain import', () => {
   const content: string = `import langchain\nfrom langchain.agents import AgentExecutor\n`;
@@ -63,9 +57,7 @@ test('detects google.generativeai import', () => {
   assert.ok(result.frameworks.includes('google.generativeai'), 'Should detect google.generativeai');
 });
 
-// -------------------------------------------------------------------------
-// analyzeFile: audit trail detection
-// -------------------------------------------------------------------------
+// === analyzeFile: audit trail ===
 
 test('detects asqav audit trail', () => {
   const content: string = `import openai\nimport asqav\nasqav.sign(action)\n`;
@@ -91,9 +83,7 @@ test('flags missing audit trail', () => {
   assert.ok(!result.auditTrail.pass, 'Should flag missing audit trail');
 });
 
-// -------------------------------------------------------------------------
-// analyzeFile: policy enforcement detection
-// -------------------------------------------------------------------------
+// === analyzeFile: policy enforcement ===
 
 test('detects rate_limit policy', () => {
   const content: string = `import openai\nrate_limit = 10\n`;
@@ -119,9 +109,7 @@ test('flags missing policy enforcement', () => {
   assert.ok(!result.policyEnforcement.pass, 'Should flag missing policy enforcement');
 });
 
-// -------------------------------------------------------------------------
-// analyzeFile: revocation detection
-// -------------------------------------------------------------------------
+// === analyzeFile: revocation ===
 
 test('detects kill_switch', () => {
   const content: string = `import openai\nif kill_switch:\n    sys.exit(1)\n`;
@@ -141,9 +129,7 @@ test('flags missing revocation', () => {
   assert.ok(!result.revocation.pass, 'Should flag missing revocation');
 });
 
-// -------------------------------------------------------------------------
-// analyzeFile: human oversight detection
-// -------------------------------------------------------------------------
+// === analyzeFile: human oversight ===
 
 test('detects human_in_the_loop', () => {
   const content: string = `import openai\nhuman_in_the_loop = True\n`;
@@ -169,9 +155,7 @@ test('flags missing human oversight', () => {
   assert.ok(!result.humanOversight.pass, 'Should flag missing human oversight');
 });
 
-// -------------------------------------------------------------------------
-// analyzeFile: error handling detection
-// -------------------------------------------------------------------------
+// === analyzeFile: error handling ===
 
 test('detects try/except error handling', () => {
   const content: string = `import openai\ntry:\n    result = openai.chat()\nexcept Exception as e:\n    handle(e)\n`;
@@ -185,9 +169,7 @@ test('flags missing error handling', () => {
   assert.ok(!result.errorHandling.pass, 'Should flag missing error handling');
 });
 
-// -------------------------------------------------------------------------
-// analyzeFile: fully compliant file
-// -------------------------------------------------------------------------
+// === analyzeFile: fully compliant file ===
 
 test('fully compliant file scores all PASS', () => {
   const content: string = `
@@ -217,9 +199,7 @@ except Exception as e:
   assert.ok(result.errorHandling.pass, 'Error handling should pass');
 });
 
-// -------------------------------------------------------------------------
-// generateReport: empty results
-// -------------------------------------------------------------------------
+// === generateReport: empty results ===
 
 test('generates report for no agent files', () => {
   const report: string = generateReport([]);
@@ -227,9 +207,7 @@ test('generates report for no agent files', () => {
   assert.ok(report.includes('asqav'), 'Should mention asqav');
 });
 
-// -------------------------------------------------------------------------
-// generateReport: report with gaps
-// -------------------------------------------------------------------------
+// === generateReport: gaps ===
 
 test('generates report with gaps', () => {
   const results = [
@@ -242,9 +220,7 @@ test('generates report with gaps', () => {
   assert.ok(report.includes('agent.py'), 'Should reference the file');
 });
 
-// -------------------------------------------------------------------------
-// generateReport: report for compliant file
-// -------------------------------------------------------------------------
+// === generateReport: compliant file ===
 
 test('generates report with all PASS for compliant file', () => {
   const content: string = `
@@ -266,9 +242,7 @@ except Exception as e:
   assert.ok(!report.includes('Recommendations'), 'Should not include recommendations');
 });
 
-// -------------------------------------------------------------------------
-// generateReport: score calculation
-// -------------------------------------------------------------------------
+// === generateReport: score calculation ===
 
 test('score is 0 when all checks fail', () => {
   const results = [
@@ -282,11 +256,8 @@ test('score is partial when some checks pass', () => {
   const content: string = `import openai\nimport asqav\nasqav.sign(x)\nrate_limit = 5\n`;
   const results = [analyzeFile('partial.py', content)];
   const report: string = generateReport(results);
-  // Audit trail (pass) + policy (pass) = 40 points, rest are gaps
-  assert.ok(report.includes('40/100'), 'Score should be 40/100');
+  assert.ok(report.includes('40/100'), 'Score should be 40/100 (audit + policy = 40)');
 });
-
-// --- Summary ---
 
 console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed\n`);
 

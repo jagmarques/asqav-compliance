@@ -1,7 +1,12 @@
+/**
+ * Static-pattern scanner for AI agent governance gaps. Walks a directory,
+ * filters Python files that import a known agent framework, and tags each
+ * file with pass/gap markers across audit-trail, policy, revocation,
+ * human-oversight, and error-handling categories.
+ */
+
 import * as fs from 'fs';
 import * as path from 'path';
-
-// --- Type Definitions ---
 
 export interface FileResult {
   filePath: string;
@@ -22,8 +27,6 @@ export interface AnalysisResult {
   humanOversight: GovCheck;
   errorHandling: GovCheck;
 }
-
-// --- Pattern Definitions ---
 
 const AGENT_FRAMEWORK_PATTERNS: RegExp[] = [
   /^\s*(?:import\s+(?:langchain|crewai|openai|anthropic|autogen|google\.generativeai|smolagents|llama_index|haystack|semantic_kernel|dspy|pydantic_ai))/m,
@@ -88,15 +91,11 @@ const HUMAN_OVERSIGHT_PATTERNS: RegExp[] = [
 ];
 
 const ERROR_HANDLING_PATTERN: RegExp = /try\s*:/;
-
-// We also look for except blocks that follow try blocks to validate real try/except usage
 const EXCEPT_PATTERN: RegExp = /except\s*(?:\w|[:(])/;
 
-// --- Core Functions ---
-
 /**
- * Recursively scan a directory for Python files that use AI agent frameworks.
- * Returns an array of FileResult objects.
+ * Recursively scan a directory for Python files that import a known AI agent framework.
+ * Skips common build/venv directories and any file larger than 1 MiB.
  */
 export function scanDirectory(dirPath: string): FileResult[] {
   const results: FileResult[] = [];
@@ -106,7 +105,6 @@ export function scanDirectory(dirPath: string): FileResult[] {
     try {
       entries = fs.readdirSync(currentPath, { withFileTypes: true });
     } catch (err) {
-      // Skip directories we cannot read
       return;
     }
 
@@ -114,7 +112,6 @@ export function scanDirectory(dirPath: string): FileResult[] {
       if (entry.isSymbolicLink()) continue;
       const fullPath: string = path.join(currentPath, entry.name);
 
-      // Skip common non-essential directories
       if (entry.isDirectory()) {
         const skip: string[] = [
           'node_modules', '.git', '__pycache__', '.venv', 'venv',
@@ -127,11 +124,10 @@ export function scanDirectory(dirPath: string): FileResult[] {
         continue;
       }
 
-      // Only process Python files
       if (!entry.name.endsWith('.py')) continue;
 
       const stat: fs.Stats = fs.statSync(fullPath);
-      if (stat.size > 1024 * 1024) continue; // skip files > 1MB
+      if (stat.size > 1024 * 1024) continue;
 
       let content: string;
       try {
@@ -140,7 +136,6 @@ export function scanDirectory(dirPath: string): FileResult[] {
         continue;
       }
 
-      // Check if this file imports any agent framework
       const usesAgent: boolean = AGENT_FRAMEWORK_PATTERNS.some((pat: RegExp) => pat.test(content));
       if (usesAgent) {
         results.push({ filePath: fullPath, content });
@@ -152,9 +147,7 @@ export function scanDirectory(dirPath: string): FileResult[] {
   return results;
 }
 
-/**
- * Helper to check patterns against content and return a GovCheck.
- */
+/** Run each regex against content and return pass-flag plus the matched substrings. */
 function checkPatterns(patterns: RegExp[], content: string): GovCheck {
   return {
     pass: patterns.some((p: RegExp) => p.test(content)),
@@ -168,16 +161,12 @@ function checkPatterns(patterns: RegExp[], content: string): GovCheck {
   };
 }
 
-/**
- * Analyse a single file's content for governance patterns.
- * Returns an AnalysisResult describing which checks pass.
- */
+/** Score a single file's contents against every governance category. */
 export function analyzeFile(filePath: string, content: string): AnalysisResult {
   const detectedFrameworks: string[] = [];
   for (const pat of AGENT_FRAMEWORK_PATTERNS) {
     const match: RegExpMatchArray | null = content.match(pat);
     if (match) {
-      // Extract the framework name from the import line
       const line: string = match[0].trim();
       const fwMatch: RegExpMatchArray | null = line.match(/(?:import|from)\s+([\w.]+)/);
       if (fwMatch && !detectedFrameworks.includes(fwMatch[1].replace(/\.$/, ''))) {
@@ -209,7 +198,6 @@ export function analyzeFile(filePath: string, content: string): AnalysisResult {
   };
 }
 
-// Type for the category keys used in generateReport
 type CategoryKey = 'auditTrail' | 'policyEnforcement' | 'revocation' | 'humanOversight' | 'errorHandling';
 
 interface CategoryDef {
@@ -223,9 +211,7 @@ interface CategoryTotal {
   files: string[];
 }
 
-/**
- * Generate a Markdown compliance report from analysis results.
- */
+/** Render the analysis results as a Markdown report suitable for a PR comment. */
 export function generateReport(results: AnalysisResult[]): string {
   if (results.length === 0) {
     return [
@@ -238,7 +224,6 @@ export function generateReport(results: AnalysisResult[]): string {
     ].join('\n');
   }
 
-  // Aggregate across all files
   const totals: Record<CategoryKey, CategoryTotal> = {
     auditTrail: { pass: 0, gap: 0, files: [] },
     policyEnforcement: { pass: 0, gap: 0, files: [] },
@@ -266,19 +251,17 @@ export function generateReport(results: AnalysisResult[]): string {
     }
   }
 
-  // Calculate score: each category contributes 20 points, weighted by file pass rate
   let score: number = 0;
   for (const { key } of categories) {
     const total: number = totals[key].pass + totals[key].gap;
     if (total > 0) {
       score += (totals[key].pass / total) * 20;
     } else {
-      score += 20; // No files = no gaps for this category
+      score += 20;
     }
   }
   score = Math.round(score);
 
-  // Determine badge
   let badge: string;
   if (score >= 80) {
     badge = ':white_check_mark:';
@@ -298,7 +281,6 @@ export function generateReport(results: AnalysisResult[]): string {
   lines.push(`| **Frameworks detected** | ${[...new Set(results.flatMap((r: AnalysisResult) => r.frameworks))].join(', ') || 'N/A'} |`);
   lines.push('');
 
-  // Category breakdown
   lines.push('### Governance Checks');
   lines.push('');
   lines.push('| Category | Status | Details |');
@@ -330,7 +312,6 @@ export function generateReport(results: AnalysisResult[]): string {
 
   lines.push('');
 
-  // Recommendations section (only for gaps)
   const gapCategories: CategoryDef[] = categories.filter(({ key }: CategoryDef) => totals[key].gap > 0);
   if (gapCategories.length > 0) {
     lines.push('### Recommendations');
@@ -341,7 +322,6 @@ export function generateReport(results: AnalysisResult[]): string {
     lines.push('');
   }
 
-  // Per-file breakdown
   lines.push('<details>');
   lines.push('<summary>Per-file breakdown</summary>');
   lines.push('');
