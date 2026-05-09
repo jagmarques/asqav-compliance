@@ -1,3 +1,9 @@
+/**
+ * Static-pattern scanner for AI agent governance gaps. Walks a directory,
+ * filters Python files that import a known agent framework, and tags each
+ * file with pass/gap markers across audit-trail, policy, revocation,
+ * human-oversight, and error-handling categories.
+ */
 export interface FileResult {
     filePath: string;
     content: string;
@@ -16,16 +22,11 @@ export interface AnalysisResult {
     errorHandling: GovCheck;
 }
 /**
- * Recursively scan a directory for Python files that use AI agent frameworks.
- * Returns an array of FileResult objects.
+ * Recursively scan a directory for Python files that import a known AI agent framework.
+ * Skips common build/venv directories and any file larger than 1 MiB.
  */
 export declare function scanDirectory(dirPath: string): FileResult[];
-/**
- * Analyse a single file's content for governance patterns.
- * Returns an AnalysisResult describing which checks pass.
- */
+/** Score a single file's contents against every governance category. */
 export declare function analyzeFile(filePath: string, content: string): AnalysisResult;
-/**
- * Generate a Markdown compliance report from analysis results.
- */
+/** Render the analysis results as a Markdown report suitable for a PR comment. */
 export declare function generateReport(results: AnalysisResult[]): string;
