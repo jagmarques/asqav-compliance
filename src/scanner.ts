@@ -13,7 +13,7 @@ export interface FileResult {
   content: string;
 }
 
-export interface GovCheck {
+interface GovCheck {
   pass: boolean;
   matches: string[];
 }
