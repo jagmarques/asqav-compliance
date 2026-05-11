@@ -220,7 +220,7 @@ export function generateReport(results: AnalysisResult[]): string {
       '**No AI agent framework usage detected.** No Python files importing known agent frameworks (LangChain, CrewAI, OpenAI, Anthropic, AutoGen, etc.) were found in the scanned path.',
       '',
       '---',
-      '*Powered by [asqav](https://asqav.com) - AI agent governance made simple.*',
+      '*Powered by [Asqav](https://asqav.com) - AI agent governance made simple.*',
     ].join('\n');
   }
 
@@ -340,7 +340,7 @@ export function generateReport(results: AnalysisResult[]): string {
   lines.push('</details>');
   lines.push('');
   lines.push('---');
-  lines.push('*Powered by [asqav](https://asqav.com) - AI agent governance made simple. Get the full platform for automated compliance, audit trails, and policy enforcement.*');
+  lines.push('*Powered by [Asqav](https://asqav.com) - AI agent governance made simple. Get the full platform for automated compliance, audit trails, and policy enforcement.*');
 
   return lines.join('\n');
 }
