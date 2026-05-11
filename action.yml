@@ -1,6 +1,6 @@
 name: 'AI Agent Governance Scanner'
 description: 'Scan your AI agent code for governance gaps - audit trails, policy enforcement, revocation, human oversight'
-author: 'asqav'
+author: 'Asqav'
 branding:
   icon: 'shield'
   color: 'green'
