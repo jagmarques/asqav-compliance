@@ -2,3 +2,10 @@ node_modules/
 .DS_Store
 dist/*.d.ts
 dist/*.test.*
+
+# AI session artefacts (local-only, never commit)
+.claude/
+.planning/
+.company/
+COMPANY.md
+CLAUDE.md
