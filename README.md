@@ -15,7 +15,7 @@
   <a href="https://asqav.com">Website</a> |
   <a href="https://asqav.com/docs">Docs</a> |
   <a href="https://asqav.com/docs/sdk">SDK Guide</a> |
-  <a href="https://asqav.com/compliance">Compliance</a>
+  <a href="https://www.asqav.com/docs">Compliance</a>
 </p>
 
 # Compliance Scanner
