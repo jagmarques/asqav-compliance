@@ -193,12 +193,12 @@ Each of the 5 categories contributes up to 20 points. Points are proportional to
 
 ## Supported Frameworks
 
-Works out of the box with 10 AI agent frameworks:
+Works out of the box with 12 AI agent frameworks:
 
 - [LangChain](https://langchain.com/) / [LlamaIndex](https://www.llamaindex.ai/) / [Haystack](https://haystack.deepset.ai/)
 - [CrewAI](https://crewai.com/) / [AutoGen](https://microsoft.github.io/autogen/) / [Smol Agents](https://huggingface.co/docs/smolagents/)
 - [OpenAI](https://platform.openai.com/) / [Anthropic](https://anthropic.com/) / [Google Generative AI](https://ai.google.dev/)
-- [Semantic Kernel](https://learn.microsoft.com/semantic-kernel/)
+- [Semantic Kernel](https://learn.microsoft.com/semantic-kernel/) / [DSPy](https://dspy.ai/) / [PydanticAI](https://ai.pydantic.dev/)
 
 ---
 
