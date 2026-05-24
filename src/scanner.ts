@@ -90,7 +90,7 @@ const HUMAN_OVERSIGHT_PATTERNS: RegExp[] = [
   /human_oversight/i,
 ];
 
-const ERROR_HANDLING_PATTERN: RegExp = /try\s*:/;
+const ERROR_HANDLING_PATTERN: RegExp = /try\s*\{/;
 const EXCEPT_PATTERN: RegExp = /except\s*(?:\w|[:(])/;
 
 /**
