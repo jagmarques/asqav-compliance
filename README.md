@@ -103,13 +103,11 @@ Each gap includes actionable recommendations with links to documentation.
 
 The scanner evaluates five governance categories for every Python file that imports an AI agent framework:
 
-| Category | What it looks for |
-|----------|-------------------|
-| **Audit Trail** | Logging, `asqav.sign()`, audit logs, action logging |
-| **Policy Enforcement** | Rate limits, scope restrictions, action gating, timeouts |
-| **Revocation Capability** | Kill switches, circuit breakers, emergency stop mechanisms |
-| **Human Oversight** | Human-in-the-loop flows, approval gates, manual review steps |
-| **Error Handling** | try/except blocks around agent calls |
+* Audit Trail: logging, `asqav.sign()`, audit logs, and action logging.
+* Policy Enforcement: rate limits, scope restrictions, action gating, and timeouts.
+* Revocation Capability: kill switches, circuit breakers, and emergency stop mechanisms.
+* Human Oversight: human-in-the-loop flows, approval gates, and manual review steps.
+* Error Handling: try/except blocks around agent calls.
 
 ### Regulatory Mapping
 
@@ -123,20 +121,16 @@ These checks align with requirements from:
 
 ## Inputs
 
-| Input | Description | Required | Default |
-|-------|-------------|----------|---------|
-| `github-token` | GitHub token for posting PR comments | Yes | `${{ github.token }}` |
-| `scan-path` | Path to scan (relative to repo root) | No | `.` (entire repo) |
-| `fail-on-gaps` | Fail the check if governance gaps are found | No | `false` |
+* `github-token`: GitHub token for posting PR comments. Required, defaults to `${{ github.token }}`.
+* `scan-path`: path to scan, relative to the repo root. Optional, defaults to `.` (the entire repo).
+* `fail-on-gaps`: fail the check if governance gaps are found. Optional, defaults to `false`.
 
 ## Outputs
 
-| Output | Description |
-|--------|-------------|
-| `score` | Compliance score (0-100) |
-| `agent-files` | Number of agent files found |
-| `gaps` | Total number of governance gaps |
-| `report` | Full Markdown report |
+* `score`: compliance score (0-100).
+* `agent-files`: number of agent files found.
+* `gaps`: total number of governance gaps.
+* `report`: full Markdown report.
 
 ---
 
@@ -183,11 +177,9 @@ jobs:
 
 Each of the 5 categories contributes up to 20 points. Points are proportional to the percentage of agent files that pass each check.
 
-| Score | Meaning |
-|-------|---------|
-| 80-100 | Strong governance posture |
-| 50-79 | Some gaps to address |
-| 0-49 | Significant governance gaps |
+* 80-100: strong governance posture.
+* 50-79: some gaps to address.
+* 0-49: significant governance gaps.
 
 ---
 
@@ -204,12 +196,10 @@ Works out of the box with 12 AI agent frameworks:
 
 ## Related Projects
 
-| Project | Description |
-|---------|-------------|
-| [asqav-sdk](https://github.com/jagmarques/asqav-sdk) | Python SDK for AI agent governance - audit trails, policy enforcement, signing |
-| [asqav-mcp](https://github.com/jagmarques/asqav-mcp) | MCP server for AI agent governance - policy checks and compliance via Model Context Protocol |
+* [asqav-sdk](https://github.com/jagmarques/asqav-sdk): Python SDK for AI agent governance, covering audit trails, policy enforcement, and signing.
+* [asqav-mcp](https://github.com/jagmarques/asqav-mcp): MCP server for AI agent governance, with policy checks and compliance over the Model Context Protocol.
 
-Use the SDK for runtime governance. Use this action for CI/CD compliance checks. Use MCP for AI-native tool integration.
+Use the SDK for runtime governance, this action for CI/CD compliance checks, and the MCP server for AI-native tool integration.
 
 ---
 
