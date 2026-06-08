@@ -52,7 +52,7 @@ The action scans every PR for AI agent framework usage and posts a compliance re
 
 This GitHub Action runs entirely inside your repository's CI runner. It reads the changed files in the pull request diff, performs static pattern matching, and posts the resulting Markdown report as a PR comment via the GitHub API. The Action does not transmit your code, prompts, or agent context to the Asqav cloud or any third-party service.
 
-If you separately use the `asqav` Python SDK or `@asqav/sdk` at runtime, those have their own data handling. By default, both SDKs auto-detect the Asqav cloud (`*.asqav.com`) and apply hash-only mode for GDPR-aware data minimization, sending only a hash plus a small metadata bag (action_type, agent_id, session_id, model_name, tool_name). For self-hosted deployments, the SDKs send the full context to the server you control. You can override per call:
+If you separately use the `asqav` Python SDK or `@asqav/sdk` at runtime, those have their own data handling. By default, both SDKs auto-detect the Asqav cloud (`*.asqav.com`) and apply hash-only mode for GDPR-aware data minimization, sending only a hash plus a small metadata bag of action_type, agent_id, session_id, model_name, and tool_name. For self-hosted deployments, the SDKs send the full context to the server you control. You can override per call:
 
 ```typescript
 import { init } from '@asqav/sdk';
@@ -122,12 +122,12 @@ These checks align with requirements from:
 ## Inputs
 
 * `github-token`: GitHub token for posting PR comments. Required, defaults to `${{ github.token }}`.
-* `scan-path`: path to scan, relative to the repo root. Optional, defaults to `.` (the entire repo).
+* `scan-path`: path to scan, relative to the repo root. Optional, defaults to `.` for the entire repo.
 * `fail-on-gaps`: fail the check if governance gaps are found. Optional, defaults to `false`.
 
 ## Outputs
 
-* `score`: compliance score (0-100).
+* `score`: compliance score from 0 to 100.
 * `agent-files`: number of agent files found.
 * `gaps`: total number of governance gaps.
 * `report`: full Markdown report.
