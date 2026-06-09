@@ -32217,7 +32217,7 @@ async function run() {
             req.on('error', () => { });
             req.end();
         }
-        catch (e) { /* swallow */ }
+        catch (e) { }
         const agentFiles = (0, scanner_1.scanDirectory)(fullScanPath);
         core.info(`Found ${agentFiles.length} Python file(s) using AI agent frameworks`);
         const results = agentFiles.map(({ filePath, content }) => {
@@ -32276,19 +32276,7 @@ async function run() {
                 gaps++;
             return sum + gaps;
         }, 0);
-        let score = 0;
-        const categories = ['auditTrail', 'policyEnforcement', 'revocation', 'humanOversight', 'errorHandling'];
-        for (const key of categories) {
-            const passCount = results.filter((r) => r[key].pass).length;
-            const total = results.length;
-            if (total > 0) {
-                score += (passCount / total) * 20;
-            }
-            else {
-                score += 20;
-            }
-        }
-        score = Math.round(score);
+        const score = (0, scanner_1.computeScore)(results);
         core.setOutput('score', score.toString());
         core.setOutput('agent-files', totalFiles.toString());
         core.setOutput('gaps', gapCount.toString());
@@ -32312,12 +32300,7 @@ run();
 
 "use strict";
 
-/**
- * Static-pattern scanner for AI agent governance gaps. Walks a directory,
- * filters Python files that import a known agent framework, and tags each
- * file with pass/gap markers across audit-trail, policy, revocation,
- * human-oversight, and error-handling categories.
- */
+// Static-pattern scanner for AI agent governance gaps in Python agent files.
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -32352,8 +32335,10 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.GOVERNANCE_CATEGORIES = void 0;
 exports.scanDirectory = scanDirectory;
 exports.analyzeFile = analyzeFile;
+exports.computeScore = computeScore;
 exports.generateReport = generateReport;
 const fs = __importStar(__nccwpck_require__(9896));
 const path = __importStar(__nccwpck_require__(6928));
@@ -32416,10 +32401,7 @@ const HUMAN_OVERSIGHT_PATTERNS = [
 ];
 const ERROR_HANDLING_PATTERN = /try\s*:/;
 const EXCEPT_PATTERN = /except\s*(?:\w|[:(])/;
-/**
- * Recursively scan a directory for Python files that import a known AI agent framework.
- * Skips common build/venv directories and any file larger than 1 MiB.
- */
+// Skips build/venv dirs, symlinks, and files over 1 MiB.
 function scanDirectory(dirPath) {
     const results = [];
     function walk(currentPath) {
@@ -32466,7 +32448,6 @@ function scanDirectory(dirPath) {
     walk(dirPath);
     return results;
 }
-/** Run each regex against content and return pass-flag plus the matched substrings. */
 function checkPatterns(patterns, content) {
     return {
         pass: patterns.some((p) => p.test(content)),
@@ -32479,7 +32460,6 @@ function checkPatterns(patterns, content) {
             .filter((v) => v !== null),
     };
 }
-/** Score a single file's contents against every governance category. */
 function analyzeFile(filePath, content) {
     const detectedFrameworks = [];
     for (const pat of AGENT_FRAMEWORK_PATTERNS) {
@@ -32512,7 +32492,24 @@ function analyzeFile(filePath, content) {
         errorHandling,
     };
 }
-/** Render the analysis results as a Markdown report suitable for a PR comment. */
+// Canonical ordered list of governance categories; single source for keys + labels.
+exports.GOVERNANCE_CATEGORIES = [
+    { key: 'auditTrail', label: 'Audit Trail' },
+    { key: 'policyEnforcement', label: 'Policy Enforcement' },
+    { key: 'revocation', label: 'Revocation Capability' },
+    { key: 'humanOversight', label: 'Human Oversight' },
+    { key: 'errorHandling', label: 'Error Handling' },
+];
+// Weight each category equally toward a 0-100 compliance score (empty category counts as full).
+function computeScore(results) {
+    let score = 0;
+    for (const { key } of exports.GOVERNANCE_CATEGORIES) {
+        const total = results.length;
+        const passCount = results.filter((r) => r[key].pass).length;
+        score += total > 0 ? (passCount / total) * 20 : 20;
+    }
+    return Math.round(score);
+}
 function generateReport(results) {
     if (results.length === 0) {
         return [
@@ -32521,7 +32518,7 @@ function generateReport(results) {
             '**No AI agent framework usage detected.** No Python files importing known agent frameworks (LangChain, CrewAI, OpenAI, Anthropic, AutoGen, etc.) were found in the scanned path.',
             '',
             '---',
-            '*Powered by [asqav](https://asqav.com) - AI agent governance made simple.*',
+            '*Powered by [Asqav](https://asqav.com) - AI agent governance made simple.*',
         ].join('\n');
     }
     const totals = {
@@ -32531,13 +32528,7 @@ function generateReport(results) {
         humanOversight: { pass: 0, gap: 0, files: [] },
         errorHandling: { pass: 0, gap: 0, files: [] },
     };
-    const categories = [
-        { key: 'auditTrail', label: 'Audit Trail' },
-        { key: 'policyEnforcement', label: 'Policy Enforcement' },
-        { key: 'revocation', label: 'Revocation Capability' },
-        { key: 'humanOversight', label: 'Human Oversight' },
-        { key: 'errorHandling', label: 'Error Handling' },
-    ];
+    const categories = exports.GOVERNANCE_CATEGORIES;
     for (const result of results) {
         for (const { key } of categories) {
             if (result[key].pass) {
@@ -32549,17 +32540,7 @@ function generateReport(results) {
             }
         }
     }
-    let score = 0;
-    for (const { key } of categories) {
-        const total = totals[key].pass + totals[key].gap;
-        if (total > 0) {
-            score += (totals[key].pass / total) * 20;
-        }
-        else {
-            score += 20;
-        }
-    }
-    score = Math.round(score);
+    const score = computeScore(results);
     let badge;
     if (score >= 80) {
         badge = ':white_check_mark:';
@@ -32597,7 +32578,6 @@ function generateReport(results) {
             lines.push(`| ${label} | :white_check_mark: PASS | ${t.pass}/${total} files covered |`);
         }
         else {
-            const gapFiles = t.files.map((f) => `\`${f}\``).join(', ');
             lines.push(`| ${label} | :x: GAP | ${t.gap}/${total} files missing coverage |`);
         }
     }
@@ -32627,7 +32607,7 @@ function generateReport(results) {
     lines.push('</details>');
     lines.push('');
     lines.push('---');
-    lines.push('*Powered by [asqav](https://asqav.com) - AI agent governance made simple. Get the full platform for automated compliance, audit trails, and policy enforcement.*');
+    lines.push('*Powered by [Asqav](https://asqav.com) - AI agent governance made simple. Get the full platform for automated compliance, audit trails, and policy enforcement.*');
     return lines.join('\n');
 }
 

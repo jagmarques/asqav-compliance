@@ -1,9 +1,4 @@
-/**
- * Static-pattern scanner for AI agent governance gaps. Walks a directory,
- * filters Python files that import a known agent framework, and tags each
- * file with pass/gap markers across audit-trail, policy, revocation,
- * human-oversight, and error-handling categories.
- */
+// Static-pattern scanner for AI agent governance gaps in Python agent files.
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -93,10 +88,7 @@ const HUMAN_OVERSIGHT_PATTERNS: RegExp[] = [
 const ERROR_HANDLING_PATTERN: RegExp = /try\s*:/;
 const EXCEPT_PATTERN: RegExp = /except\s*(?:\w|[:(])/;
 
-/**
- * Recursively scan a directory for Python files that import a known AI agent framework.
- * Skips common build/venv directories and any file larger than 1 MiB.
- */
+// Skips build/venv dirs, symlinks, and files over 1 MiB.
 export function scanDirectory(dirPath: string): FileResult[] {
   const results: FileResult[] = [];
 
@@ -147,7 +139,6 @@ export function scanDirectory(dirPath: string): FileResult[] {
   return results;
 }
 
-/** Run each regex against content and return pass-flag plus the matched substrings. */
 function checkPatterns(patterns: RegExp[], content: string): GovCheck {
   return {
     pass: patterns.some((p: RegExp) => p.test(content)),
@@ -161,7 +152,6 @@ function checkPatterns(patterns: RegExp[], content: string): GovCheck {
   };
 }
 
-/** Score a single file's contents against every governance category. */
 export function analyzeFile(filePath: string, content: string): AnalysisResult {
   const detectedFrameworks: string[] = [];
   for (const pat of AGENT_FRAMEWORK_PATTERNS) {
@@ -198,7 +188,7 @@ export function analyzeFile(filePath: string, content: string): AnalysisResult {
   };
 }
 
-type CategoryKey = 'auditTrail' | 'policyEnforcement' | 'revocation' | 'humanOversight' | 'errorHandling';
+export type CategoryKey = 'auditTrail' | 'policyEnforcement' | 'revocation' | 'humanOversight' | 'errorHandling';
 
 interface CategoryDef {
   key: CategoryKey;
@@ -211,7 +201,26 @@ interface CategoryTotal {
   files: string[];
 }
 
-/** Render the analysis results as a Markdown report suitable for a PR comment. */
+// Canonical ordered list of governance categories; single source for keys + labels.
+export const GOVERNANCE_CATEGORIES: CategoryDef[] = [
+  { key: 'auditTrail', label: 'Audit Trail' },
+  { key: 'policyEnforcement', label: 'Policy Enforcement' },
+  { key: 'revocation', label: 'Revocation Capability' },
+  { key: 'humanOversight', label: 'Human Oversight' },
+  { key: 'errorHandling', label: 'Error Handling' },
+];
+
+// Weight each category equally toward a 0-100 compliance score (empty category counts as full).
+export function computeScore(results: AnalysisResult[]): number {
+  let score: number = 0;
+  for (const { key } of GOVERNANCE_CATEGORIES) {
+    const total: number = results.length;
+    const passCount: number = results.filter((r: AnalysisResult) => r[key].pass).length;
+    score += total > 0 ? (passCount / total) * 20 : 20;
+  }
+  return Math.round(score);
+}
+
 export function generateReport(results: AnalysisResult[]): string {
   if (results.length === 0) {
     return [
@@ -232,13 +241,7 @@ export function generateReport(results: AnalysisResult[]): string {
     errorHandling: { pass: 0, gap: 0, files: [] },
   };
 
-  const categories: CategoryDef[] = [
-    { key: 'auditTrail', label: 'Audit Trail' },
-    { key: 'policyEnforcement', label: 'Policy Enforcement' },
-    { key: 'revocation', label: 'Revocation Capability' },
-    { key: 'humanOversight', label: 'Human Oversight' },
-    { key: 'errorHandling', label: 'Error Handling' },
-  ];
+  const categories: CategoryDef[] = GOVERNANCE_CATEGORIES;
 
   for (const result of results) {
     for (const { key } of categories) {
@@ -251,16 +254,7 @@ export function generateReport(results: AnalysisResult[]): string {
     }
   }
 
-  let score: number = 0;
-  for (const { key } of categories) {
-    const total: number = totals[key].pass + totals[key].gap;
-    if (total > 0) {
-      score += (totals[key].pass / total) * 20;
-    } else {
-      score += 20;
-    }
-  }
-  score = Math.round(score);
+  const score: number = computeScore(results);
 
   let badge: string;
   if (score >= 80) {
@@ -305,7 +299,6 @@ export function generateReport(results: AnalysisResult[]): string {
     if (t.gap === 0) {
       lines.push(`| ${label} | :white_check_mark: PASS | ${t.pass}/${total} files covered |`);
     } else {
-      const gapFiles: string = t.files.map((f: string) => `\`${f}\``).join(', ');
       lines.push(`| ${label} | :x: GAP | ${t.gap}/${total} files missing coverage |`);
     }
   }
