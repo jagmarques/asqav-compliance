@@ -1,9 +1,7 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
 import * as path from 'path';
-import { scanDirectory, analyzeFile, generateReport, AnalysisResult } from './scanner';
-
-type CategoryKey = 'auditTrail' | 'policyEnforcement' | 'revocation' | 'humanOversight' | 'errorHandling';
+import { scanDirectory, analyzeFile, generateReport, computeScore, AnalysisResult } from './scanner';
 
 async function run(): Promise<void> {
   try {
@@ -28,7 +26,7 @@ async function run(): Promise<void> {
       });
       req.on('error', () => {});
       req.end();
-    } catch (e) { /* swallow */ }
+    } catch (e) {}
 
     const agentFiles = scanDirectory(fullScanPath);
     core.info(`Found ${agentFiles.length} Python file(s) using AI agent frameworks`);
@@ -93,18 +91,7 @@ async function run(): Promise<void> {
       return sum + gaps;
     }, 0);
 
-    let score: number = 0;
-    const categories: CategoryKey[] = ['auditTrail', 'policyEnforcement', 'revocation', 'humanOversight', 'errorHandling'];
-    for (const key of categories) {
-      const passCount: number = results.filter((r: AnalysisResult) => r[key].pass).length;
-      const total: number = results.length;
-      if (total > 0) {
-        score += (passCount / total) * 20;
-      } else {
-        score += 20;
-      }
-    }
-    score = Math.round(score);
+    const score: number = computeScore(results);
 
     core.setOutput('score', score.toString());
     core.setOutput('agent-files', totalFiles.toString());
