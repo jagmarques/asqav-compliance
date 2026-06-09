@@ -188,7 +188,7 @@ export function analyzeFile(filePath: string, content: string): AnalysisResult {
   };
 }
 
-export type CategoryKey = 'auditTrail' | 'policyEnforcement' | 'revocation' | 'humanOversight' | 'errorHandling';
+type CategoryKey = 'auditTrail' | 'policyEnforcement' | 'revocation' | 'humanOversight' | 'errorHandling';
 
 interface CategoryDef {
   key: CategoryKey;
@@ -202,7 +202,7 @@ interface CategoryTotal {
 }
 
 // Canonical ordered list of governance categories; single source for keys + labels.
-export const GOVERNANCE_CATEGORIES: CategoryDef[] = [
+const GOVERNANCE_CATEGORIES: CategoryDef[] = [
   { key: 'auditTrail', label: 'Audit Trail' },
   { key: 'policyEnforcement', label: 'Policy Enforcement' },
   { key: 'revocation', label: 'Revocation Capability' },

@@ -32335,7 +32335,6 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.GOVERNANCE_CATEGORIES = void 0;
 exports.scanDirectory = scanDirectory;
 exports.analyzeFile = analyzeFile;
 exports.computeScore = computeScore;
@@ -32493,7 +32492,7 @@ function analyzeFile(filePath, content) {
     };
 }
 // Canonical ordered list of governance categories; single source for keys + labels.
-exports.GOVERNANCE_CATEGORIES = [
+const GOVERNANCE_CATEGORIES = [
     { key: 'auditTrail', label: 'Audit Trail' },
     { key: 'policyEnforcement', label: 'Policy Enforcement' },
     { key: 'revocation', label: 'Revocation Capability' },
@@ -32503,7 +32502,7 @@ exports.GOVERNANCE_CATEGORIES = [
 // Weight each category equally toward a 0-100 compliance score (empty category counts as full).
 function computeScore(results) {
     let score = 0;
-    for (const { key } of exports.GOVERNANCE_CATEGORIES) {
+    for (const { key } of GOVERNANCE_CATEGORIES) {
         const total = results.length;
         const passCount = results.filter((r) => r[key].pass).length;
         score += total > 0 ? (passCount / total) * 20 : 20;
@@ -32528,7 +32527,7 @@ function generateReport(results) {
         humanOversight: { pass: 0, gap: 0, files: [] },
         errorHandling: { pass: 0, gap: 0, files: [] },
     };
-    const categories = exports.GOVERNANCE_CATEGORIES;
+    const categories = GOVERNANCE_CATEGORIES;
     for (const result of results) {
         for (const { key } of categories) {
             if (result[key].pass) {
