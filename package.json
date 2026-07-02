@@ -27,7 +27,7 @@
   "devDependencies": {
     "@types/node": "^25.9.3",
     "@vercel/ncc": "^0.44.0",
-    "tsx": "^4.22.4",
+    "tsx": "^4.22.5",
     "typescript": "^5.9.3"
   },
   "overrides": {
