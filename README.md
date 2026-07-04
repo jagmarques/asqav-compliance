@@ -197,9 +197,8 @@ Works out of the box with 12 AI agent frameworks:
 ## Related Projects
 
 * [asqav-sdk](https://github.com/jagmarques/asqav-sdk): Python SDK for AI agent governance, covering audit trails, policy enforcement, and signing.
-* [asqav-mcp](https://github.com/jagmarques/asqav-mcp): MCP server for AI agent governance, with policy checks and compliance over the Model Context Protocol.
 
-Use the SDK for runtime governance, this action for CI/CD compliance checks, and the MCP server for AI-native tool integration.
+Use the SDK for runtime governance and this action for CI/CD compliance checks.
 
 ---
 
