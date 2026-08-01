@@ -7,7 +7,7 @@
     "type": "git",
     "url": "https://github.com/jagmarques/asqav-compliance.git"
   },
-  "license": "MIT",
+  "license": "Elastic-2.0",
   "author": "Asqav",
   "keywords": [
     "github-action",
