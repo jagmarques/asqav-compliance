@@ -9,7 +9,6 @@
 <p align="center">
   <a href="https://www.elastic.co/licensing/elastic-license"><img src="https://img.shields.io/badge/License-Elastic--2.0-blue.svg?style=flat-square&logoColor=white" alt="License: Elastic License 2.0"></a>
   <a href="https://github.com/jagmarques/asqav-compliance"><img src="https://img.shields.io/badge/GitHub%20Action-AI%20Agent%20Governance-blue.svg?style=flat-square" alt="GitHub Action"></a>
-  <a href="https://github.com/jagmarques/asqav-compliance"><img src="https://img.shields.io/github/stars/jagmarques/asqav-compliance?style=social" alt="GitHub stars"></a>
 </p>
 <p align="center">
   <a href="https://asqav.com">Website</a> |
