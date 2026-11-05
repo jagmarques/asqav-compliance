@@ -6,7 +6,7 @@ on:
     branches: [main]
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -16,7 +16,7 @@ jobs:
       - run: npx tsc --noEmit
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -28,7 +28,7 @@ jobs:
   ci-ok:
     if: ${{ always() }}
     needs: [lint, test]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hz-ci-light]
     steps:
       - name: Gate
         run: |
