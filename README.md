@@ -205,7 +205,7 @@ Use the SDK for runtime governance and this action for CI/CD compliance checks.
 
 Contributions are welcome. Check the [open issues](https://github.com/jagmarques/asqav-compliance/issues) for good starting points.
 
-The scanner is built with TypeScript and runs as a GitHub Action using Node 20. To develop locally:
+The scanner is built with TypeScript and runs as a GitHub Action using Node 24. To develop locally:
 
 ```bash
 git clone https://github.com/jagmarques/asqav-compliance.git
