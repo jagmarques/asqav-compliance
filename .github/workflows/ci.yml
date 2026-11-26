@@ -4,6 +4,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    - cron: "17 6 * * 1"
 jobs:
   lint:
     runs-on: [self-hosted, hz-ci-light]
@@ -25,14 +27,24 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  audit:
+    runs-on: [self-hosted, hz-ci-light]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+
   ci-ok:
     if: ${{ always() }}
-    needs: [lint, test]
+    needs: [lint, test, audit]
     runs-on: [self-hosted, hz-ci-light]
     steps:
       - name: Gate
         run: |
-          if [ "${{ needs.lint.result }}" != "success" ] || [ "${{ needs.test.result }}" != "success" ]; then
-            echo "lint=${{ needs.lint.result }} test=${{ needs.test.result }}"
+          if [ "${{ needs.lint.result }}" != "success" ] || [ "${{ needs.test.result }}" != "success" ] || [ "${{ needs.audit.result }}" != "success" ]; then
+            echo "lint=${{ needs.lint.result }} test=${{ needs.test.result }} audit=${{ needs.audit.result }}"
             exit 1
           fi
